@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MobileAIDomestic"
 include(":app")
- 
+include(":platform:shizuku_for_maid")
