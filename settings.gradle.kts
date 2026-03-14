@@ -14,13 +14,12 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven { url = uri("https://maven.rikka.app/repository/maven-public/") }
         google()
         mavenCentral()
-
     }
 }
 
 rootProject.name = "MobileAIDomestic"
 include(":app")
 include(":platform:shizuku_for_maid")
+include(":platform:shizuku_service")
