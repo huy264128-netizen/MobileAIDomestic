@@ -3,13 +3,16 @@ plugins {
 }
 
 android {
-    namespace = "com.projectmaidgroup.platform.shizuku_service"
-    compileSdk = 36
+    namespace = "com.projectmaidgroup.ui.avatar"
+    compileSdk {
+        version = release(36)
+    }
 
     defaultConfig {
         minSdk = 31
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildTypes {
@@ -25,17 +28,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    buildFeatures {
-        aidl = true
-    }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    api(libs.shizuku.api)
-    api(libs.shizuku.provider)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

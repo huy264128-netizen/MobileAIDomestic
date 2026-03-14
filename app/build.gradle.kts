@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "com.projectmaidgroup.mobileaidomestic"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.projectmaidgroup.mobileaidomestic"
@@ -48,6 +46,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(project(":platform:shizuku_for_maid"))
     implementation(project(":platform:shizuku_service"))
+    implementation(project(":ui:avatar"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
