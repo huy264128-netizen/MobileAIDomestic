@@ -11,6 +11,7 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -21,7 +22,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "MobileAIDomestic"
 include(":app")
-include(":platform:shizuku_for_maid")
-include(":platform:shizuku_service")
-include(":ui:avatar")
-include(":ui:compose-kit")
