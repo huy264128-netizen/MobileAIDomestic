@@ -14,6 +14,7 @@ class MaoUserModel(
 ) : CubismUserModel() {
 
     private val loadedTextureIds = mutableListOf<Int>()
+    private var androidRenderer: CubismRendererAndroid? = null
 
     fun load(modelDir: String, modelJson: String) {
         Log.d("MaoUserModel", "load start: $modelDir/$modelJson")
@@ -29,19 +30,22 @@ class MaoUserModel(
 
         if (model == null) {
             throw IllegalStateException(
-                "Live2D model == null after loadModel(). " +
-                        "通常是 Cubism Framework 和 Live2DCubismCore.aar 版本不匹配，" +
-                        "或者 moc3 文件与当前 Core 不兼容。"
+                "model == null after loadModel(). " +
+                        "优先怀疑：Live2D Framework、Live2DCubismCore.aar、Mao.moc3 版本不匹配。"
             )
         }
 
+        Log.d("MaoUserModel", "model created: canvas=${model.canvasWidth} x ${model.canvasHeight}")
+
         modelMatrix = CubismModelMatrix.create(model.canvasWidth, model.canvasHeight).apply {
-            setWidth(1.8f)
-            setCenterPosition(0.0f, 0.0f)
+            setWidth(1.25f)
+            setCenterPosition(0.0f, 0.45f)
         }
 
-        val androidRenderer = CubismRendererAndroid()
-        setupRenderer(androidRenderer)
+        val renderer = CubismRendererAndroid()
+        setupRenderer(renderer)
+        androidRenderer = renderer
+        Log.d("MaoUserModel", "renderer setup finished")
 
         val textureCount = setting.getTextureCount()
         Log.d("MaoUserModel", "textureCount = $textureCount")
@@ -53,7 +57,7 @@ class MaoUserModel(
 
             val textureId = GLTextureLoader.loadTextureFromAssets(context, fullTexPath)
             loadedTextureIds += textureId
-            androidRenderer.bindTexture(i, textureId)
+            renderer.bindTexture(i, textureId)
         }
 
         model.update()
@@ -66,22 +70,23 @@ class MaoUserModel(
     }
 
     fun draw(viewWidth: Int, viewHeight: Int) {
-        val r = renderer ?: run {
+        val renderer = androidRenderer ?: run {
             Log.e("MaoUserModel", "draw skipped: renderer == null")
             return
         }
 
         if (viewWidth <= 0 || viewHeight <= 0) {
-            Log.e("MaoUserModel", "draw skipped: invalid surface size = ${viewWidth}x${viewHeight}")
+            Log.e("MaoUserModel", "draw skipped: invalid size = ${viewWidth}x${viewHeight}")
             return
         }
 
         val projection = CubismMatrix44.create()
 
-        if (viewWidth > viewHeight) {
-            projection.scaleRelative(viewHeight.toFloat() / viewWidth.toFloat(), 1.0f)
+        val aspect = viewWidth.toFloat() / viewHeight.toFloat()
+        if (aspect > 1f) {
+            projection.scaleRelative(1f / aspect, 1f)
         } else {
-            projection.scaleRelative(1.0f, viewWidth.toFloat() / viewHeight.toFloat())
+            projection.scaleRelative(1f, aspect)
         }
 
         projection.multiplyByMatrix(modelMatrix)
@@ -91,13 +96,14 @@ class MaoUserModel(
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 
-        r.mvpMatrix = projection
-        r.drawModel()
+        renderer.mvpMatrix = projection
+        renderer.drawModel()
     }
 
     fun release() {
         loadedTextureIds.forEach { GLTextureLoader.deleteTexture(it) }
         loadedTextureIds.clear()
+        androidRenderer = null
         delete()
     }
 }
