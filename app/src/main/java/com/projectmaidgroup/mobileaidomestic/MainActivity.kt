@@ -18,14 +18,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("MobileAIDomestic build OK")
-                    }
-                }
+                Live2DTalk()
+//                Surface(modifier = Modifier.fillMaxSize()) {
+//                    Box(
+//                        modifier = Modifier.fillMaxSize(),
+//                        contentAlignment = Alignment.Center
+//                    ) {
+//                        Text("MobileAIDomestic build OK")
+//                    }
+//                }
             }
         }
     }

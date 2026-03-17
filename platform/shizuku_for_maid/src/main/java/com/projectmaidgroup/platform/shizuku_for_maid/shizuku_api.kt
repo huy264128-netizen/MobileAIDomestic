@@ -96,3 +96,9 @@ object ShizukuManager {
             }
         }
 }
+suspend fun tap_shell(x: Int, y: Int) = ShizukuManager.execCommand("input tap $x $y")
+suspend fun swipe_shell(x1: Int, y1: Int, x2: Int, y2: Int, duration: Int) = ShizukuManager.execCommand("input swipe $x1 $y1 $x2 $y2 $duration")
+suspend fun pressKey_shell(key: String) = ShizukuManager.execCommand("input keyevent $key")
+suspend fun uninstall_shell(packageName: String) = ShizukuManager.execCommand("pm uninstall $packageName")
+suspend fun install_shell(packagePath: String) = ShizukuManager.execCommand("pm install $packagePath")
+suspend fun setScreenBrightness_shell(brightness: Int) = ShizukuManager.execCommand("settings put system screen_brightness $brightness")
