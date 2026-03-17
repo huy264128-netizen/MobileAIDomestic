@@ -14,7 +14,6 @@ class Live2DRenderer(
 ) : GLSurfaceView.Renderer {
 
     private var loadFailed = false
-    private var failReason: String? = null
     private var currentSpec: Live2DModelSpec? = null
     private var mao: MaoUserModel? = null
     private var started = false
@@ -23,15 +22,10 @@ class Live2DRenderer(
     private var surfaceWidth = 1
     private var surfaceHeight = 1
 
-    private val cubismOption = CubismFramework.Option().apply {
-        logFunction = null
-        loggingLevel = CubismFramework.Option.LogLevel.OFF
-    }
     fun setModel(spec: Live2DModelSpec) {
         currentSpec = spec
         mao = null
         loadFailed = false
-        failReason = null
     }
 
     fun playTapMotion() {
@@ -42,13 +36,12 @@ class Live2DRenderer(
         GLES20.glClearColor(0.12f, 0.12f, 0.16f, 1.0f)
 
         try {
-            if (!CubismFramework.isStarted()) {
-                CubismFramework.startUp()
-            }
-            if (!CubismFramework.isInitialized()) {
+            if (!started) {
+                CubismFramework.cleanUp()
+                CubismFramework.startUp(CubismFramework.Option())
                 CubismFramework.initialize()
+                started = true
             }
-            started = true
             Log.d("Live2DRenderer", "Cubism init success")
         } catch (t: Throwable) {
             loadFailed = true
@@ -66,9 +59,7 @@ class Live2DRenderer(
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
-        if (loadFailed) {
-            return
-        }
+        if (loadFailed) return
 
         try {
             if (mao == null) {
@@ -87,7 +78,7 @@ class Live2DRenderer(
 
             if (pendingTapMotion) {
                 pendingTapMotion = false
-                Log.d("Live2DRenderer", "Tap motion requested")
+                Log.d("Live2DRenderer", "tap motion requested")
             }
 
             mao?.update(1f / 60f)
@@ -97,6 +88,4 @@ class Live2DRenderer(
             Log.e("Live2DRenderer", "onDrawFrame failed", t)
         }
     }
-
-    fun getFailReason(): String? = failReason
 }

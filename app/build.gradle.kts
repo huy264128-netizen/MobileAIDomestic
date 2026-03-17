@@ -45,9 +45,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     
-    // Material Design Icons
-    implementation(libs.androidx.compose.material.icons.extended)
-    
     // 显式添加 Shizuku 依赖以确保 Provider 类被打包
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
@@ -56,7 +53,6 @@ dependencies {
     implementation(project(":platform:shizuku_service"))
     implementation(files("libs/Live2DCubismCore.aar"))
     implementation(project(":ui:avatar"))
-    implementation(libs.androidx.ui)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
