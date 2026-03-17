@@ -35,4 +35,7 @@ object ShizukuServiceManager {
     fun runCommand(cmd: String): String? {
         return service?.runCommand(cmd)
     }
+    fun tap(x: Int, y: Int) {
+        service?.tap(x, y)
+    }
 }
