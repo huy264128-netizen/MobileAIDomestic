@@ -7,9 +7,10 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 31
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildTypes {
@@ -36,7 +37,9 @@ dependencies {
     implementation(libs.material)
     api(libs.shizuku.api)
     api(libs.shizuku.provider)
+    implementation(libs.shizuku.api)
     implementation(project(":platform:shizuku_service"))
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -54,6 +54,7 @@ dependencies {
 
     implementation(project(":platform:shizuku_for_maid"))
     implementation(project(":platform:shizuku_service"))
+    implementation(files("libs/Live2DCubismCore.aar"))
     implementation(project(":ui:avatar"))
     implementation(libs.androidx.ui)
 
@@ -65,3 +66,4 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
