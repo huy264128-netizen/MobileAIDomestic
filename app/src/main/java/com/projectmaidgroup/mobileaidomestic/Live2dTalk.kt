@@ -93,7 +93,6 @@ fun Live2DTalk() {
             Live2DAvatarScreen(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 model = AvatarModels.DefaultAssistant,
-
             )
             Spacer(modifier = Modifier.height(64.dp))
         }
