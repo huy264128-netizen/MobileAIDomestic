@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.dependencies
+
 plugins {
     alias(libs.plugins.android.library)
 }
@@ -30,6 +32,10 @@ android {
 }
 
 dependencies {
+    val shizuku_version = "13.1.0" // 建议使用较新版本
+    implementation (libs.shizuku.api)
+    // 必须包含 provider，它会自动处理 Manifest 合并，让 Shizuku 识别你
+    implementation (libs.shizuku.provider)
     implementation(libs.androidx.core.ktx)
     implementation(libs.shizuku.api)
     implementation(project(":platform:shizuku_service"))
