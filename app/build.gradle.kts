@@ -53,6 +53,8 @@ dependencies {
     implementation(project(":platform:shizuku_service"))
     implementation(files("libs/Live2DCubismCore.aar"))
     implementation(project(":ui:avatar"))
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.play.services.fido)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
