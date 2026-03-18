@@ -95,7 +95,7 @@ fun Live2DTalk() {
                 model = AvatarModels.DefaultAssistant,
 
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(64.dp))
         }
     }
 }

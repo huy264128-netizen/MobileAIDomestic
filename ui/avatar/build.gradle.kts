@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":third_party:live2d_framework"))
 
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.compose.foundation.layout)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
