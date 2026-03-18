@@ -38,8 +38,8 @@ class MaoUserModel(
         Log.d("MaoUserModel", "model created: canvas=${model.canvasWidth} x ${model.canvasHeight}")
 
         modelMatrix = CubismModelMatrix.create(model.canvasWidth, model.canvasHeight).apply {
-            setWidth(1.25f)
-            setCenterPosition(0.0f, 0.45f)
+            setWidth(1.5f)
+            setCenterPosition(0.75f, 0.65f)
         }
 
         val renderer = CubismRendererAndroid()
@@ -90,6 +90,8 @@ class MaoUserModel(
         }
 
         projection.multiplyByMatrix(modelMatrix)
+
+        //projection.multiplyByMatrix(modelMatrix)
 
         GLES20.glDisable(GLES20.GL_CULL_FACE)
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
