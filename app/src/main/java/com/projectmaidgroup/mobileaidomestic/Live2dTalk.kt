@@ -19,24 +19,21 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -52,7 +49,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -65,17 +61,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.projectmaidgroup.ui.avatar.AvatarModels
 import com.projectmaidgroup.ui.avatar.Live2DAvatarScreen
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Immutable
 private data class ChatMessage(
@@ -93,9 +85,6 @@ private interface AgentBackend {
     suspend fun reply(input: String): String
 }
 
-/**
- * 先做本地假数据，后续直接替换成真实对话接口即可
- */
 private class LocalEchoAgent : AgentBackend {
     override suspend fun reply(input: String): String {
         delay(350)
@@ -124,7 +113,7 @@ fun Live2DTalk() {
 
     val themeColors = remember {
         listOf(
-            Color(0xFF7C4DFF),
+            Color(0xFF5865F2),
             Color(0xFF03A9F4),
             Color(0xFF26A69A),
             Color(0xFFFF7043),
@@ -133,7 +122,7 @@ fun Live2DTalk() {
     }
 
     var themeColorIndex by rememberSaveable { mutableIntStateOf(0) }
-    var panelAlpha by rememberSaveable { mutableFloatStateOf(0.72f) }
+    var panelAlpha by rememberSaveable { mutableFloatStateOf(0.62f) }
 
     val panelColor = themeColors[themeColorIndex]
     val panelBackground = panelColor.copy(alpha = panelAlpha)
@@ -144,63 +133,36 @@ fun Live2DTalk() {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF101114))
-            .padding(WindowInsets.safeDrawing.asPaddingValues())
+            .background(Color(0xFF08101D))
     ) {
         val screenWidth = maxWidth
-        val screenHeight = maxHeight
         val isCompact = screenWidth < 420.dp
+        val topInset = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
+        val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-        val avatarWidth = if (isCompact) screenWidth * 0.74f else screenWidth * 0.58f
         val panelHorizontalPadding = if (isCompact) 12.dp else 20.dp
-        val bubbleMaxWidth = if (isCompact) screenWidth * 0.62f else screenWidth * 0.46f
+        val bubbleMaxWidth = if (isCompact) screenWidth * 0.62f else screenWidth * 0.48f
+        val inputBottomPadding = bottomInset + 8.dp
+        val inputPanelHeight = if (isCompact) 146.dp else 156.dp
+        val userBubbleBottom = inputBottomPadding + inputPanelHeight + if (isCompact) 18.dp else 22.dp
 
         Box(modifier = Modifier.fillMaxSize()) {
-
-            // 顶层按钮
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                CircleIconButton(
-                    onClick = { showHistory = true },
-                    containerColor = Color.Black.copy(alpha = 0.28f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "历史对话",
-                        tint = Color.White
-                    )
-                }
-
-                CircleIconButton(
-                    onClick = { showSettings = true },
-                    containerColor = Color.Black.copy(alpha = 0.28f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "设置",
-                        tint = Color.White
-                    )
-                }
-            }
-
-            // Live2D 区域 + 智能体气泡
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.72f)
-                    .align(Alignment.TopCenter)
-                    .padding(top = 36.dp)
+                    .fillMaxSize()
+                    .background(Color(0xFF0C1B33))
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topInset + 6.dp)
             ) {
                 Live2DAvatarScreen(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .widthIn(max = avatarWidth)
-                        .fillMaxHeight(),
+                        .align(Alignment.Center)
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.90f),
                     model = AvatarModels.DefaultAssistant
                 )
 
@@ -209,10 +171,10 @@ fun Live2DTalk() {
                     enter = fadeIn(),
                     exit = fadeOut(),
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
+                        .align(Alignment.TopEnd)
                         .padding(
-                            end = if (isCompact) 12.dp else 24.dp,
-                            top = if (isCompact) 36.dp else 56.dp
+                            top = topInset + if (isCompact) 110.dp else 92.dp,
+                            end = if (isCompact) 16.dp else 24.dp
                         )
                 ) {
                     MessageBubble(
@@ -225,7 +187,6 @@ fun Live2DTalk() {
                 }
             }
 
-            // 用户上一条消息气泡（显示在底部输入框上方）
             AnimatedVisibility(
                 visible = !lastUserMessage?.content.isNullOrBlank(),
                 enter = fadeIn(),
@@ -234,19 +195,18 @@ fun Live2DTalk() {
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = panelHorizontalPadding,
-                        bottom = if (isCompact) 160.dp else 176.dp
+                        bottom = userBubbleBottom
                     )
             ) {
                 MessageBubble(
                     text = lastUserMessage?.content.orEmpty(),
                     maxWidth = bubbleMaxWidth,
-                    backgroundColor = panelColor.copy(alpha = 0.95f),
+                    backgroundColor = panelColor.copy(alpha = 0.96f),
                     contentColor = Color.White,
                     tailOnStart = false
                 )
             }
 
-            // 底部半透明对话框
             ChatInputPanel(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -254,7 +214,7 @@ fun Live2DTalk() {
                     .padding(
                         start = panelHorizontalPadding,
                         end = panelHorizontalPadding,
-                        bottom = 12.dp
+                        bottom = inputBottomPadding
                     ),
                 text = inputText,
                 panelColor = panelBackground,
@@ -264,12 +224,11 @@ fun Live2DTalk() {
                     val content = inputText.trim()
                     if (content.isEmpty()) return@ChatInputPanel
 
-                    val userMessage = ChatMessage(
+                    messages += ChatMessage(
                         id = System.currentTimeMillis(),
                         role = ChatRole.USER,
                         content = content
                     )
-                    messages += userMessage
                     inputText = ""
 
                     scope.launch {
@@ -282,6 +241,41 @@ fun Live2DTalk() {
                     }
                 }
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 8.dp,
+                        end = 8.dp,
+                        top = topInset + 6.dp,
+                        bottom = 6.dp
+                    ),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                CircleIconButton(
+                    onClick = { showHistory = true },
+                    containerColor = Color.Black.copy(alpha = 0.34f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = "历史对话",
+                        tint = Color.White
+                    )
+                }
+
+                CircleIconButton(
+                    onClick = { showSettings = true },
+                    containerColor = Color.Black.copy(alpha = 0.34f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "设置",
+                        tint = Color.White
+                    )
+                }
+            }
 
             if (showHistory) {
                 HistoryOverlay(
@@ -313,22 +307,20 @@ private fun ChatInputPanel(
     onOpenSettings: () -> Unit,
     onSend: () -> Unit
 ) {
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = panelColor),
-        shape = RoundedCornerShape(24.dp)
+        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp + maxOf(imeBottom, navBottom))
+                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "本地测试对话",
@@ -346,26 +338,27 @@ private fun ChatInputPanel(
                 }
             }
 
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp, max = 140.dp),
-                label = { Text("请输入内容") },
-                placeholder = { Text("例如：你好") },
-                shape = RoundedCornerShape(18.dp),
-                singleLine = false,
-                maxLines = 4
-            )
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(top = 6.dp),
+                verticalAlignment = Alignment.Bottom
             ) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 52.dp, max = 96.dp),
+                    label = { Text("请输入内容") },
+                    placeholder = { Text("例如：你好") },
+                    shape = RoundedCornerShape(20.dp),
+                    singleLine = false,
+                    maxLines = 4
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 CircleIconButton(
                     onClick = onSend,
                     containerColor = Color.White.copy(alpha = 0.18f)
@@ -389,9 +382,7 @@ private fun MessageBubble(
     contentColor: Color,
     tailOnStart: Boolean
 ) {
-    Row(
-        verticalAlignment = Alignment.Bottom
-    ) {
+    Row(verticalAlignment = Alignment.Bottom) {
         if (tailOnStart) {
             BubbleTail(
                 color = backgroundColor,
@@ -459,9 +450,7 @@ private fun HistoryOverlay(
                 containerColor = Color(0xFF1E1F24).copy(alpha = 0.94f)
             )
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -495,11 +484,7 @@ private fun HistoryOverlay(
                     items(messages, key = { it.id }) { message ->
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = if (message.role == ChatRole.USER) {
-                                Alignment.End
-                            } else {
-                                Alignment.Start
-                            }
+                            horizontalAlignment = if (message.role == ChatRole.USER) Alignment.End else Alignment.Start
                         ) {
                             Text(
                                 text = if (message.role == ChatRole.USER) "用户" else "智能体",
@@ -511,7 +496,7 @@ private fun HistoryOverlay(
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
                                 color = if (message.role == ChatRole.USER) {
-                                    Color(0xFF7C4DFF).copy(alpha = 0.88f)
+                                    Color(0xFF5865F2).copy(alpha = 0.88f)
                                 } else {
                                     Color.White.copy(alpha = 0.92f)
                                 },
@@ -577,7 +562,7 @@ private fun SettingsDialog(
                     Slider(
                         value = alpha,
                         onValueChange = onAlphaChange,
-                        valueRange = 0.25f..0.95f
+                        valueRange = 0.25f..0.9f
                     )
                 }
             }
@@ -598,8 +583,7 @@ private fun CircleIconButton(
         modifier = Modifier.minimumInteractiveComponentSize()
     ) {
         Box(
-            modifier = Modifier
-                .size(42.dp),
+            modifier = Modifier.size(42.dp),
             contentAlignment = Alignment.Center
         ) {
             content()
