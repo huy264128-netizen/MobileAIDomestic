@@ -52,8 +52,8 @@ class MaoUserModel(
 
         // 6) matrix
         modelMatrix = CubismModelMatrix.create(model.canvasWidth, model.canvasHeight).apply {
-            setWidth(2f)
-            setCenterPosition(1f, 0.7f)
+            setWidth(2.6f)
+            setCenterPosition(1.3f, 1.5f)
         }
 
         // 7) renderer
