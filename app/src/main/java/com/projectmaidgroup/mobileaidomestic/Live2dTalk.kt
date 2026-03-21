@@ -1,5 +1,6 @@
 package com.projectmaidgroup.mobileaidomestic
 
+import androidx.compose.ui.graphics.toArgb
 import android.content.Context
 import android.media.MediaPlayer
 import androidx.compose.animation.AnimatedContent
@@ -143,8 +144,22 @@ fun Live2DTalk() {
     val isDark = isSystemInDarkTheme()
     val bgTop = if (isDark) Color(0xFF102033) else Color(0xFFE5EEF8)
     val bgBottom = if (isDark) Color(0xFF07111D) else Color(0xFFD7E3F2)
-    val agentBubbleColor = if (isDark) Color(0xFFDEE8F5) else Color(0xFFF7FAFF)
-    val agentTextColor = Color(0xFF1A2433)
+
+// Live2D 背景直接跟页面底色统一
+    val live2dBgColor = bgBottom
+
+// 你的需求：系统浅色 -> UI深色；系统深色 -> UI浅色
+    val uiIsDark = !isDark
+
+    val panelColor = if (uiIsDark) Color(0xFF1F2733) else Color(0xFFF8FAFD)
+    val panelTextColor = if (uiIsDark) Color.White else Color(0xFF1A2433)
+    val panelSubTextColor = if (uiIsDark) Color.White.copy(alpha = 0.68f) else Color(0xFF1A2433).copy(alpha = 0.68f)
+
+    val agentBubbleColor = if (uiIsDark) Color(0xFF2A3442) else Color.White
+    val agentTextColor = if (uiIsDark) Color.White else Color(0xFF1A2433)
+
+    val userBubbleColor = if (uiIsDark) Color(0xFF4D657E) else Color(0xFFDCE6F2)
+    val userTextColor = if (uiIsDark) Color.White else Color(0xFF1A2433)
 
     val themeColors = remember {
         listOf(
@@ -174,7 +189,7 @@ fun Live2DTalk() {
     var musicEnabled by rememberSaveable { mutableStateOf(prefs.musicEnabled) }
     var agentAnimateTick by rememberSaveable { mutableIntStateOf(0) }
 
-    val panelColor = themeColors[themeColorIndex]
+    //val panelColor = themeColors[themeColorIndex]
     val panelBackground = panelColor.copy(alpha = panelAlpha)
     val lastUserMessage = messages.lastOrNull { it.role == ChatRole.USER }
     val lastAgentMessage = messages.lastOrNull { it.role == ChatRole.AGENT }
@@ -264,7 +279,9 @@ fun Live2DTalk() {
                 ) {
                     Live2DAvatarScreen(
                         modifier = Modifier.fillMaxSize(),
-                        model = AvatarModels.DefaultAssistant
+                        model = AvatarModels.DefaultAssistant,
+                        backgroundColor = live2dBgColor.toArgb(),
+                        replyMotionTrigger = agentAnimateTick
                     )
                 }
 
@@ -304,10 +321,11 @@ fun Live2DTalk() {
                 MessageBubble(
                     text = lastUserMessage?.content.orEmpty(),
                     maxWidth = bubbleMaxWidth,
-                    backgroundColor = panelColor.copy(alpha = 0.94f),
-                    contentColor = Color.White,
+                    backgroundColor = userBubbleColor,
+                    contentColor = if (isDark) Color.Black else userTextColor,
                     tailOnStart = false,
                     isAgent = false
+
                 )
             }
 
