@@ -264,17 +264,6 @@ fun Live2DTalk() {
                         tint = Color.White
                     )
                 }
-
-                CircleIconButton(
-                    onClick = { showSettings = true },
-                    containerColor = Color.Black.copy(alpha = 0.34f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "设置",
-                        tint = Color.White
-                    )
-                }
             }
 
             if (showHistory) {
