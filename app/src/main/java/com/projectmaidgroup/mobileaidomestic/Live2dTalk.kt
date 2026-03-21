@@ -100,6 +100,9 @@ import com.projectmaidgroup.ui.avatar.AvatarModels
 import com.projectmaidgroup.ui.avatar.Live2DAvatarScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 
 @Immutable
 private data class ChatMessage(
@@ -142,13 +145,22 @@ fun Live2DTalk() {
     val backend = remember { LocalEchoAgent() }
 
     val isDark = isSystemInDarkTheme()
-    val bgTop = if (isDark) Color(0xFF102033) else Color(0xFFE5EEF8)
-    val bgBottom = if (isDark) Color(0xFF07111D) else Color(0xFFD7E3F2)
 
-// Live2D 背景直接跟页面底色统一
-    val live2dBgColor = bgBottom
+// 页面主背景：低饱和高级蓝，仍然跟系统浅深色走
+    val bgTop = if (isDark) Color(0xFF0D1825) else Color(0xFFF2F6FB)
+    val bgBottom = if (isDark) Color(0xFF162636) else Color(0xFFDCE7F2)
 
-// 你的需求：系统浅色 -> UI深色；系统深色 -> UI浅色
+// Live2D 区域背景：和页面同色系，但刻意拉开一点层次，避免和边框/舞台撞色
+    val live2dBgColor = if (isDark) Color(0xFF172535) else Color(0xFFEAF1F8)
+    val live2dStageTop = if (isDark) Color(0xFF223548) else Color(0xFFF7FAFD)
+    val live2dStageBottom = if (isDark) Color(0xFF12202E) else Color(0xFFE4EDF6)
+    val live2dFrameColor = if (isDark) {
+        Color.White.copy(alpha = 0.08f)
+    } else {
+        Color(0xFF7890AA).copy(alpha = 0.16f)
+    }
+
+// 保持你原来的“系统浅色 -> UI深色；系统深色 -> UI浅色”
     val uiIsDark = !isDark
 
     val panelColor = if (uiIsDark) Color(0xFF1F2733) else Color(0xFFF8FAFD)
@@ -157,10 +169,26 @@ fun Live2DTalk() {
 
     val agentBubbleColor = if (uiIsDark) Color(0xFF2A3442) else Color.White
     val agentTextColor = if (uiIsDark) Color.White else Color(0xFF1A2433)
-
     val userBubbleColor = if (uiIsDark) Color(0xFF4D657E) else Color(0xFFDCE6F2)
     val userTextColor = if (uiIsDark) Color.White else Color(0xFF1A2433)
 
+// 中央回复卡片：浅色模式下灰色半透明白字；深色模式下白色半透明黑字
+    val centerReplyTopColor = if (isDark) {
+        Color.White.copy(alpha = 0.84f)
+    } else {
+        Color(0xFF6A7079).copy(alpha = 0.62f)
+    }
+    val centerReplyBottomColor = if (isDark) {
+        Color.White.copy(alpha = 0.70f)
+    } else {
+        Color(0xFF4F5660).copy(alpha = 0.48f)
+    }
+    val centerReplyTextColor = if (isDark) Color(0xFF14181D) else Color.White
+    val centerReplyBorderColor = if (isDark) {
+        Color.Black.copy(alpha = 0.08f)
+    } else {
+        Color.White.copy(alpha = 0.14f)
+    }
     val themeColors = remember {
         listOf(
             Color(0xFF516A86),
@@ -188,7 +216,7 @@ fun Live2DTalk() {
     var userName by rememberSaveable { mutableStateOf(prefs.userName) }
     var musicEnabled by rememberSaveable { mutableStateOf(prefs.musicEnabled) }
     var agentAnimateTick by rememberSaveable { mutableIntStateOf(0) }
-
+    var showCenterReply by rememberSaveable { mutableStateOf(false) }
     //val panelColor = themeColors[themeColorIndex]
     val panelBackground = panelColor.copy(alpha = panelAlpha)
     val lastUserMessage = messages.lastOrNull { it.role == ChatRole.USER }
@@ -205,6 +233,7 @@ fun Live2DTalk() {
         animationSpec = tween(320),
         label = "avatarAlpha"
     )
+
 
     // 播放背景音乐：请把 mp3 放到 app/src/main/res/raw/bg_music.mp3
     DisposableEffect(musicEnabled) {
@@ -247,8 +276,10 @@ fun Live2DTalk() {
         val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val panelHorizontalPadding = if (isCompact) 12.dp else 20.dp
         val bubbleMaxWidth = if (isCompact) screenWidth * 0.72f else screenWidth * 0.56f
+        val centerReplyMaxWidth = if (isCompact) screenWidth * 0.78f else screenWidth * 0.54f
         val inputBottomPadding = bottomInset + 8.dp
         val inputPanelHeight = if (isCompact) 96.dp else 104.dp
+        val centerReplyBottomReserved = inputBottomPadding + inputPanelHeight + 42.dp
 
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
@@ -272,39 +303,60 @@ fun Live2DTalk() {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.88f)
+                        .fillMaxWidth(if (isCompact) 0.96f else 0.92f)
+                        .fillMaxHeight(0.84f)
+                        .padding(horizontal = if (isCompact) 8.dp else 16.dp, vertical = 6.dp)
+                        .shadow(24.dp, RoundedCornerShape(34.dp))
+                        .clip(RoundedCornerShape(34.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(live2dStageTop, live2dStageBottom)
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = live2dFrameColor,
+                            shape = RoundedCornerShape(34.dp)
+                        )
                         .scale(avatarScale)
                         .alpha(avatarAlpha)
                 ) {
+                    // 顶部轻微高光
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = if (isDark) 0.06f else 0.18f),
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = if (isDark) 0.08f else 0.03f)
+                                    )
+                                )
+                            )
+                    )
+
                     Live2DAvatarScreen(
                         modifier = Modifier.fillMaxSize(),
                         model = AvatarModels.DefaultAssistant,
                         backgroundColor = live2dBgColor.toArgb(),
-                        replyMotionTrigger = agentAnimateTick
+                        replyMotionTrigger = agentAnimateTick,
+                        //isDarkTheme = isDark
                     )
                 }
 
-                AnimatedVisibility(
-                    visible = !lastAgentMessage?.content.isNullOrBlank(),
-                    enter = bubbleEnter(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(
-                            top = topInset + if (isCompact) 104.dp else 88.dp,
-                            start = if (isCompact) 16.dp else 24.dp
-                        )
-                ) {
-                    MessageBubble(
-                        text = lastAgentMessage?.content.orEmpty(),
-                        maxWidth = bubbleMaxWidth,
-                        backgroundColor = agentBubbleColor,
-                        contentColor = agentTextColor,
-                        tailOnStart = true,
-                        isAgent = true
-                    )
-                }
+                CenterAgentReplyOverlay(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    visible = showCenterReply && !lastAgentMessage?.content.isNullOrBlank(),
+                    text = lastAgentMessage?.content.orEmpty(),
+                    maxWidth = centerReplyMaxWidth,
+                    topInset = topInset + 12.dp,
+                    bottomReserved = centerReplyBottomReserved,
+                    topColor = centerReplyTopColor,
+                    bottomColor = centerReplyBottomColor,
+                    borderColor = centerReplyBorderColor,
+                    textColor = centerReplyTextColor
+                )
             }
 
             AnimatedVisibility(
@@ -318,6 +370,7 @@ fun Live2DTalk() {
                         bottom = inputBottomPadding + inputPanelHeight + 18.dp
                     )
             ) {
+
                 MessageBubble(
                     text = lastUserMessage?.content.orEmpty(),
                     maxWidth = bubbleMaxWidth,
@@ -361,6 +414,10 @@ fun Live2DTalk() {
                             role = ChatRole.AGENT,
                             content = answer
                         )
+
+                        showCenterReply = true
+                        delay(3000)   // 显示 3 秒
+                        showCenterReply = false
                     }
                 }
             )
@@ -517,7 +574,70 @@ private fun ChatInputPanel(
         }
     }
 }
-
+@Composable
+private fun CenterAgentReplyOverlay(
+    modifier: Modifier = Modifier,
+    visible: Boolean,
+    text: String,
+    maxWidth: Dp,
+    topInset: Dp,
+    bottomReserved: Dp,
+    topColor: Color,
+    bottomColor: Color,
+    borderColor: Color,
+    textColor: Color
+) {
+    AnimatedVisibility(
+        visible = visible && text.isNotBlank(),
+        enter = fadeIn(animationSpec = tween(220)) + scaleIn(
+            initialScale = 0.92f,
+            animationSpec = tween(260, easing = FastOutSlowInEasing)
+        ),
+        exit = fadeOut(animationSpec = tween(160)) + scaleOut(
+            targetScale = 0.96f,
+            animationSpec = tween(160)
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                start = 28.dp,
+                end = 28.dp,
+                top = topInset,
+                bottom = bottomReserved
+            )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = maxWidth)
+                    .shadow(18.dp, RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(topColor, bottomColor)
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = borderColor,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+            ) {
+                Text(
+                    text = text,
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 15.dp)
+                )
+            }
+        }
+    }
+}
 @Composable
 private fun MessageBubble(
     text: String,
