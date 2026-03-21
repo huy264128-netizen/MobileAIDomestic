@@ -1,8 +1,27 @@
 package com.projectmaidgroup.mobileaidomestic
 
+import android.content.Context
+import android.media.MediaPlayer
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,13 +37,13 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -35,6 +54,8 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,11 +66,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -61,9 +85,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.text.font.FontWeight
 import com.projectmaidgroup.ui.avatar.AvatarModels
 import com.projectmaidgroup.ui.avatar.Live2DAvatarScreen
 import kotlinx.coroutines.delay
@@ -77,32 +108,59 @@ private data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-private enum class ChatRole {
-    USER, AGENT
-}
+private enum class ChatRole { USER, AGENT }
 
 private interface AgentBackend {
-    suspend fun reply(input: String): String
+    suspend fun reply(input: String, userName: String): String
 }
 
 private class LocalEchoAgent : AgentBackend {
-    override suspend fun reply(input: String): String {
-        delay(350)
-        return "我听到了“$input”"
+    override suspend fun reply(input: String, userName: String): String {
+        delay(450)
+        return "收到，$userName：$input"
     }
+}
+
+private class AppPrefs(context: Context) {
+    private val sp = context.getSharedPreferences("live2d_talk_prefs", Context.MODE_PRIVATE)
+
+    var userName: String
+        get() = sp.getString("user_name", "用户") ?: "用户"
+        set(value) = sp.edit().putString("user_name", value).apply()
+
+    var musicEnabled: Boolean
+        get() = sp.getBoolean("music_enabled", true)
+        set(value) = sp.edit().putBoolean("music_enabled", value).apply()
 }
 
 @Composable
 fun Live2DTalk() {
+    val context = LocalContext.current
+    val prefs = remember { AppPrefs(context) }
     val scope = rememberCoroutineScope()
     val backend = remember { LocalEchoAgent() }
+
+    val isDark = isSystemInDarkTheme()
+    val bgTop = if (isDark) Color(0xFF102033) else Color(0xFFE5EEF8)
+    val bgBottom = if (isDark) Color(0xFF07111D) else Color(0xFFD7E3F2)
+    val agentBubbleColor = if (isDark) Color(0xFFDEE8F5) else Color(0xFFF7FAFF)
+    val agentTextColor = Color(0xFF1A2433)
+
+    val themeColors = remember {
+        listOf(
+            Color(0xFF516A86),
+            Color(0xFF4E7891),
+            Color(0xFF5F6F84),
+            Color(0xFF66768E)
+        )
+    }
 
     val messages = remember {
         mutableStateListOf(
             ChatMessage(
                 id = 1L,
                 role = ChatRole.AGENT,
-                content = "你好，我已经准备好了。你输入什么，我就会先本地回复什么。"
+                content = "你好，我已经准备好了。"
             )
         )
     }
@@ -110,47 +168,85 @@ fun Live2DTalk() {
     var inputText by rememberSaveable { mutableStateOf("") }
     var showHistory by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
-
-    val themeColors = remember {
-        listOf(
-            Color(0xFF5865F2),
-            Color(0xFF03A9F4),
-            Color(0xFF26A69A),
-            Color(0xFFFF7043),
-            Color(0xFFE91E63)
-        )
-    }
-
     var themeColorIndex by rememberSaveable { mutableIntStateOf(0) }
-    var panelAlpha by rememberSaveable { mutableFloatStateOf(0.62f) }
+    var panelAlpha by rememberSaveable { mutableFloatStateOf(0.64f) }
+    var userName by rememberSaveable { mutableStateOf(prefs.userName) }
+    var musicEnabled by rememberSaveable { mutableStateOf(prefs.musicEnabled) }
+    var agentAnimateTick by rememberSaveable { mutableIntStateOf(0) }
 
     val panelColor = themeColors[themeColorIndex]
     val panelBackground = panelColor.copy(alpha = panelAlpha)
-
     val lastUserMessage = messages.lastOrNull { it.role == ChatRole.USER }
     val lastAgentMessage = messages.lastOrNull { it.role == ChatRole.AGENT }
+
+    val avatarScale by animateFloatAsState(
+        targetValue = if (agentAnimateTick % 2 == 1) 1.04f else 1f,
+        animationSpec = tween(320, easing = FastOutSlowInEasing),
+        label = "avatarScale"
+    )
+
+    val avatarAlpha by animateFloatAsState(
+        targetValue = if (agentAnimateTick % 2 == 1) 0.96f else 1f,
+        animationSpec = tween(320),
+        label = "avatarAlpha"
+    )
+
+    // 播放背景音乐：请把 mp3 放到 app/src/main/res/raw/bg_music.mp3
+    DisposableEffect(musicEnabled) {
+        var player: MediaPlayer? = null
+        if (musicEnabled) {
+            runCatching {
+                player = MediaPlayer.create(context, R.raw.bg_music)?.apply {
+                    isLooping = true
+                    setVolume(0.45f, 0.45f)
+                    start()
+                }
+            }
+        }
+        onDispose {
+            player?.stop()
+            player?.release()
+        }
+    }
+
+    LaunchedEffect(userName) {
+        prefs.userName = userName
+    }
+
+    LaunchedEffect(musicEnabled) {
+        prefs.musicEnabled = musicEnabled
+    }
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF08101D))
+            .background(
+                Brush.verticalGradient(
+                    listOf(bgTop, bgBottom)
+                )
+            )
     ) {
         val screenWidth = maxWidth
         val isCompact = screenWidth < 420.dp
         val topInset = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
         val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
         val panelHorizontalPadding = if (isCompact) 12.dp else 20.dp
-        val bubbleMaxWidth = if (isCompact) screenWidth * 0.62f else screenWidth * 0.48f
+        val bubbleMaxWidth = if (isCompact) screenWidth * 0.72f else screenWidth * 0.56f
         val inputBottomPadding = bottomInset + 8.dp
-        val inputPanelHeight = if (isCompact) 146.dp else 156.dp
-        val userBubbleBottom = inputBottomPadding + inputPanelHeight + if (isCompact) 18.dp else 22.dp
+        val inputPanelHeight = if (isCompact) 96.dp else 104.dp
 
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF0C1B33))
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = if (isDark) 0.04f else 0.16f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
 
             Box(
@@ -158,52 +254,60 @@ fun Live2DTalk() {
                     .fillMaxSize()
                     .padding(top = topInset + 6.dp)
             ) {
-                Live2DAvatarScreen(
+                Box(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .fillMaxWidth()
-                        .fillMaxHeight(0.90f),
-                    model = AvatarModels.DefaultAssistant
-                )
+                        .fillMaxHeight(0.88f)
+                        .scale(avatarScale)
+                        .alpha(avatarAlpha)
+                ) {
+                    Live2DAvatarScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        model = AvatarModels.DefaultAssistant
+                    )
+                }
 
                 AnimatedVisibility(
                     visible = !lastAgentMessage?.content.isNullOrBlank(),
-                    enter = fadeIn(),
+                    enter = bubbleEnter(),
                     exit = fadeOut(),
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .align(Alignment.TopStart)
                         .padding(
-                            top = topInset + if (isCompact) 110.dp else 92.dp,
-                            end = if (isCompact) 16.dp else 24.dp
+                            top = topInset + if (isCompact) 104.dp else 88.dp,
+                            start = if (isCompact) 16.dp else 24.dp
                         )
                 ) {
                     MessageBubble(
                         text = lastAgentMessage?.content.orEmpty(),
                         maxWidth = bubbleMaxWidth,
-                        backgroundColor = Color.White.copy(alpha = 0.92f),
-                        contentColor = Color(0xFF202124),
-                        tailOnStart = true
+                        backgroundColor = agentBubbleColor,
+                        contentColor = agentTextColor,
+                        tailOnStart = true,
+                        isAgent = true
                     )
                 }
             }
 
             AnimatedVisibility(
                 visible = !lastUserMessage?.content.isNullOrBlank(),
-                enter = fadeIn(),
+                enter = bubbleEnter(),
                 exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(
                         end = panelHorizontalPadding,
-                        bottom = userBubbleBottom
+                        bottom = inputBottomPadding + inputPanelHeight + 18.dp
                     )
             ) {
                 MessageBubble(
                     text = lastUserMessage?.content.orEmpty(),
                     maxWidth = bubbleMaxWidth,
-                    backgroundColor = panelColor.copy(alpha = 0.96f),
+                    backgroundColor = panelColor.copy(alpha = 0.94f),
                     contentColor = Color.White,
-                    tailOnStart = false
+                    tailOnStart = false,
+                    isAgent = false
                 )
             }
 
@@ -232,7 +336,8 @@ fun Live2DTalk() {
                     inputText = ""
 
                     scope.launch {
-                        val answer = backend.reply(content)
+                        val answer = backend.reply(content, userName)
+                        agentAnimateTick++
                         messages += ChatMessage(
                             id = System.currentTimeMillis() + 1,
                             role = ChatRole.AGENT,
@@ -256,7 +361,7 @@ fun Live2DTalk() {
             ) {
                 CircleIconButton(
                     onClick = { showHistory = true },
-                    containerColor = Color.Black.copy(alpha = 0.34f)
+                    containerColor = Color.Black.copy(alpha = 0.25f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.AccessTime,
@@ -264,11 +369,44 @@ fun Live2DTalk() {
                         tint = Color.White
                     )
                 }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CircleIconButton(
+                        onClick = { musicEnabled = !musicEnabled },
+                        containerColor = Color.Black.copy(alpha = 0.25f)
+                    ) {
+                        AnimatedContent(
+                            targetState = musicEnabled,
+                            transitionSpec = {
+                                (scaleIn(tween(180)) + fadeIn()).togetherWith(scaleOut(tween(180)) + fadeOut())
+                            },
+                            label = "musicIcon"
+                        ) { enabled ->
+                            Icon(
+                                imageVector = if (enabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                contentDescription = if (enabled) "关闭音乐" else "开启音乐",
+                                tint = Color.White
+                            )
+                        }
+                    }
+
+                    CircleIconButton(
+                        onClick = { showSettings = true },
+                        containerColor = Color.Black.copy(alpha = 0.25f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "设置",
+                            tint = Color.White
+                        )
+                    }
+                }
             }
 
             if (showHistory) {
                 HistoryOverlay(
                     messages = messages.toList(),
+                    userName = userName,
                     onDismiss = { showHistory = false }
                 )
             }
@@ -276,15 +414,31 @@ fun Live2DTalk() {
 
         if (showSettings) {
             SettingsDialog(
+                userName = userName,
                 alpha = panelAlpha,
                 currentColorIndex = themeColorIndex,
                 colors = themeColors,
+                musicEnabled = musicEnabled,
+                onUserNameChange = { userName = it },
                 onAlphaChange = { panelAlpha = it },
                 onColorSelected = { themeColorIndex = it },
+                onMusicEnabledChange = { musicEnabled = it },
                 onDismiss = { showSettings = false }
             )
         }
     }
+}
+
+private fun bubbleEnter(): EnterTransition {
+    return fadeIn(animationSpec = tween(220)) +
+            slideInVertically(
+                animationSpec = tween(280, easing = LinearOutSlowInEasing),
+                initialOffsetY = { it / 2 }
+            ) +
+            scaleIn(
+                initialScale = 0.92f,
+                animationSpec = tween(220)
+            )
 }
 
 @Composable
@@ -302,62 +456,45 @@ private fun ChatInputPanel(
         shape = RoundedCornerShape(28.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)
+                .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "本地测试对话",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f)
-                )
+            OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 54.dp, max = 92.dp),
+                placeholder = { Text("请输入内容") },
+                shape = RoundedCornerShape(22.dp),
+                singleLine = true,
+                maxLines = 1
+            )
 
-                IconButton(onClick = onOpenSettings) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "设置对话框样式",
-                        tint = Color.White
-                    )
-                }
+            Spacer(modifier = Modifier.width(8.dp))
+
+            CircleIconButton(
+                onClick = onSend,
+                containerColor = Color.White.copy(alpha = 0.18f)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "发送",
+                    tint = Color.White
+                )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = onTextChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 52.dp, max = 96.dp),
-                    label = { Text("请输入内容") },
-                    placeholder = { Text("例如：你好") },
-                    shape = RoundedCornerShape(20.dp),
-                    singleLine = false,
-                    maxLines = 4
+            Spacer(modifier = Modifier.width(4.dp))
+
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "设置",
+                    tint = Color.White
                 )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                CircleIconButton(
-                    onClick = onSend,
-                    containerColor = Color.White.copy(alpha = 0.18f)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "发送",
-                        tint = Color.White
-                    )
-                }
             }
         }
     }
@@ -369,7 +506,8 @@ private fun MessageBubble(
     maxWidth: Dp,
     backgroundColor: Color,
     contentColor: Color,
-    tailOnStart: Boolean
+    tailOnStart: Boolean,
+    isAgent: Boolean
 ) {
     Row(verticalAlignment = Alignment.Bottom) {
         if (tailOnStart) {
@@ -381,16 +519,22 @@ private fun MessageBubble(
 
         Surface(
             color = backgroundColor,
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(22.dp),
             tonalElevation = 0.dp,
-            shadowElevation = 2.dp,
+            shadowElevation = 3.dp,
             modifier = Modifier.widthIn(max = maxWidth)
         ) {
             Text(
                 text = text,
                 color = contentColor,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                style = if (isAgent) {
+                    MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold
+                    )
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             )
         }
 
@@ -418,6 +562,7 @@ private fun BubbleTail(
 @Composable
 private fun HistoryOverlay(
     messages: List<ChatMessage>,
+    userName: String,
     onDismiss: () -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -476,7 +621,7 @@ private fun HistoryOverlay(
                             horizontalAlignment = if (message.role == ChatRole.USER) Alignment.End else Alignment.Start
                         ) {
                             Text(
-                                text = if (message.role == ChatRole.USER) "用户" else "智能体",
+                                text = if (message.role == ChatRole.USER) userName else "智能体",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White.copy(alpha = 0.64f),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -485,15 +630,16 @@ private fun HistoryOverlay(
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
                                 color = if (message.role == ChatRole.USER) {
-                                    Color(0xFF5865F2).copy(alpha = 0.88f)
+                                    Color(0xFF5B728D).copy(alpha = 0.92f)
                                 } else {
-                                    Color.White.copy(alpha = 0.92f)
+                                    Color.White.copy(alpha = 0.94f)
                                 },
                                 modifier = Modifier.widthIn(max = 320.dp)
                             ) {
                                 Text(
                                     text = message.content,
                                     color = if (message.role == ChatRole.USER) Color.White else Color(0xFF222222),
+                                    style = if (message.role == ChatRole.AGENT) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                 )
                             }
@@ -507,11 +653,15 @@ private fun HistoryOverlay(
 
 @Composable
 private fun SettingsDialog(
+    userName: String,
     alpha: Float,
     currentColorIndex: Int,
     colors: List<Color>,
+    musicEnabled: Boolean,
+    onUserNameChange: (String) -> Unit,
     onAlphaChange: (Float) -> Unit,
     onColorSelected: (Int) -> Unit,
+    onMusicEnabledChange: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -521,12 +671,31 @@ private fun SettingsDialog(
                 Text("完成")
             }
         },
-        title = {
-            Text("对话框设置")
-        },
+        title = { Text("设置") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("主题色")
+                OutlinedTextField(
+                    value = userName,
+                    onValueChange = onUserNameChange,
+                    singleLine = true,
+                    label = { Text("用户名字") },
+                    placeholder = { Text("例如：小明") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("背景音乐", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = musicEnabled,
+                        onCheckedChange = onMusicEnabledChange
+                    )
+                }
+
+                Text("输入面板颜色")
+
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -547,7 +716,7 @@ private fun SettingsDialog(
                 }
 
                 Column {
-                    Text("透明度：${(alpha * 100).toInt()}%")
+                    Text("面板透明度：${(alpha * 100).toInt()}%")
                     Slider(
                         value = alpha,
                         onValueChange = onAlphaChange,
