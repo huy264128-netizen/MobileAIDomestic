@@ -199,9 +199,8 @@ fun Live2DTalk() {
                 Live2DAvatarScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
+                        .widthIn(max = avatarWidth)
                         .fillMaxHeight(),
-
                     model = AvatarModels.DefaultAssistant
                 )
 
