@@ -17,7 +17,8 @@ class Live2DGLSurfaceView @JvmOverloads constructor(
         setEGLContextClientVersion(2)
         setEGLConfigChooser(8, 8, 8, 8, 16, 0)
         holder.setFormat(PixelFormat.TRANSLUCENT)
-        setZOrderOnTop(true)
+        setZOrderOnTop(false)
+        setZOrderMediaOverlay(false)
         preserveEGLContextOnPause = true
         setBackgroundColor(android.graphics.Color.TRANSPARENT)
         setRenderer(live2dRenderer)
