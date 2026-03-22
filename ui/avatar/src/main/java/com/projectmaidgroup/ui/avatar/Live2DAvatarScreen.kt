@@ -14,7 +14,7 @@ fun Live2DAvatarScreen(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            Live2DTextureView(context).apply {
+            Live2DGLSurfaceView(context).apply {
                 loadModel(model)
                 setClearColor(backgroundColor)
             }

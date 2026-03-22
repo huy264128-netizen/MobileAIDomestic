@@ -1,7 +1,6 @@
 package com.projectmaidgroup.ui.avatar
 
 import android.content.Context
-import android.graphics.PixelFormat
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 
@@ -11,18 +10,15 @@ class Live2DGLSurfaceView @JvmOverloads constructor(
 ) : GLSurfaceView(context, attrs) {
 
     private val live2dRenderer = Live2DRenderer(context)
+
     var lastReplyMotionTrigger: Int = Int.MIN_VALUE
 
     init {
         setEGLContextClientVersion(2)
-        setEGLConfigChooser(8, 8, 8, 8, 16, 0)
-        holder.setFormat(PixelFormat.TRANSLUCENT)
-        setZOrderOnTop(false)
-        setZOrderMediaOverlay(false)
         preserveEGLContextOnPause = true
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
         setRenderer(live2dRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
+
         setOnClickListener {
             live2dRenderer.playTapMotion()
         }
@@ -41,5 +37,13 @@ class Live2DGLSurfaceView @JvmOverloads constructor(
     fun playReplyMotion() {
         queueEvent { live2dRenderer.playRandomReplyMotion() }
         requestRender()
+    }
+
+    override fun onResume() {
+        super.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
     }
 }
