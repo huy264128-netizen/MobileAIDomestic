@@ -23,10 +23,10 @@ class Live2DRenderer(
     private var surfaceWidth = 1
     private var surfaceHeight = 1
 
-    private var clearR = 0.12f
-    private var clearG = 0.12f
-    private var clearB = 0.16f
-    private var clearA = 1.0f
+    private var clearR = 0f
+    private var clearG = 0f
+    private var clearB = 0f
+    private var clearA = 0f
 
     fun setModel(spec: Live2DModelSpec) {
         currentSpec = spec
@@ -51,7 +51,6 @@ class Live2DRenderer(
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(clearR, clearG, clearB, clearA)
-
         try {
             if (!started) {
                 CubismFramework.cleanUp()
@@ -74,8 +73,7 @@ class Live2DRenderer(
 
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClearColor(clearR, clearG, clearB, clearA)
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         if (loadFailed) return
 
         try {
@@ -98,7 +96,6 @@ class Live2DRenderer(
                     pendingReplyMotion = false
                     model.playRandomReplyMotion()
                 }
-
                 model.update(1f / 60f)
                 model.draw(surfaceWidth, surfaceHeight)
             }
