@@ -1,297 +1,116 @@
-# Live2D Talk 集成说明（给后端 / AI / 其他客户端同学）
+# Live2D 安卓聊天助手项目指引
 
-本文档说明如何将 **真实 AI 对话能力** 接入当前的 `Live2dTalk` UI，使 Live2D 角色从“本地回声”升级为“智能体对话”。
+## 项目简介
+这是一个基于 Android 的 Live2D 聊天助手项目，当前已完成基础聊天界面、Live2D 展示以及本地测试回复流程。
 
----
+本项目当前阶段的重点是：
+- 保持客户端交互链路可运行
+- 保持 Live2D 展示与动作反馈正常
+- 为后续成员接入 API、模型、智能体预留清晰入口
 
-# 1. 当前状态说明
-
-当前 UI 已完成：
-
-- Live2D 渲染（TextureView 方案，支持透明 + 正确层级）
-- 对话 UI（用户气泡 / MAID 气泡）
-- 输入框 + 历史记录
-- 本地模拟 Agent：
-
-```kotlin
-private class LocalEchoAgent : AgentBackend {
-    override suspend fun reply(input: String, userName: String): String {
-        delay(450)
-        return "收到，$userName：$input"
-    }
-}
-```
-
-👉 现在要做的：把这个 **LocalEchoAgent 替换成真实 AI API**。
+当前仓库以 Android 主应用、平台能力模块、UI 模块和第三方 Live2D 相关模块组成。:contentReference[oaicite:1]{index=1}
 
 ---
 
-# 2. 核心接入点（最重要）
+## 当前我负责的部分
+我当前负责的是客户端侧基础能力，包括：
 
-所有 AI 接入只需要实现这个接口：
+- Android 客户端页面与交互
+- 聊天界面
+- Live2D 角色展示
+- 本地测试回复流程
+- 为后续能力接入预留位置
 
-```kotlin
-private interface AgentBackend {
-    suspend fun reply(input: String, userName: String): String
-}
-```
-
-UI 层完全不关心你用：
-
-- OpenAI / Azure / 自建模型
-- HTTP / WebSocket
-- 流式 / 非流式
-
-只要返回一个 `String` 即可。
+**说明：**
+当前项目里的本地测试回复仅用于联调和演示，方便验证消息发送、回复展示、角色反馈这一整条链路是否正常。
 
 ---
 
-# 3. 推荐实现方式（标准版）
+## 后续成员负责的部分
+后续成员主要负责：
 
-## 3.1 创建真实 Agent
+- 对接大模型 API
+- 接入智能体能力
+- 接入服务端对话接口
+- 上下文管理、工具调用、记忆等智能能力扩展
 
-```kotlin
-class RemoteAgent(
-    private val api: ChatApi
-) : AgentBackend {
-
-    override suspend fun reply(input: String, userName: String): String {
-        return try {
-            val response = api.chat(
-                ChatRequest(
-                    user = userName,
-                    message = input
-                )
-            )
-            response.text
-        } catch (e: Exception) {
-            "网络有点问题，我们稍后再聊～"
-        }
-    }
-}
-```
+我**不参与模型接入和智能能力实现**，我只负责把客户端侧入口留清楚。
 
 ---
 
-## 3.2 API 示例（REST）
+## 后续接入原则
+后续如果要接入真实对话能力，请直接在**当前聊天回复实现的位置**进行替换或扩展。
 
-```kotlin
-interface ChatApi {
-    @POST("/chat")
-    suspend fun chat(@Body request: ChatRequest): ChatResponse
-}
+### 接入建议
+- 保留现有聊天 UI
+- 保留现有 Live2D 展示逻辑
+- 保留现有本地测试流程作为调试参考
+- 将“本地测试回复”替换为“API/智能体返回结果”
 
-
-data class ChatRequest(
-    val user: String,
-    val message: String
-)
-
-
-data class ChatResponse(
-    val text: String
-)
-```
+也就是说，后续成员主要改的是：
+- **对话回复来源**
+  而不是：
+- Live2D 渲染层
+- UI 结构
+- 平台基础模块
 
 ---
 
-## 3.3 在 UI 中替换
+## 项目分层说明
 
-找到：
+### 1. `app`
+主应用模块，负责：
+- 页面入口
+- 聊天界面
+- 消息发送与展示
+- 当前测试回复流程
+- 与角色展示层联动
 
-```kotlin
-val backend = remember { LocalEchoAgent() }
-```
+后续如果要接入真实对话接口，优先在这一层的聊天回复逻辑中处理。
 
-改成：
+### 2. `ui`
+界面与角色展示相关模块，负责：
+- Live2D 展示
+- 角色相关 UI 表现
+- 动作或视觉反馈
 
-```kotlin
-val backend = remember { RemoteAgent(api) }
-```
+后续成员一般**不要直接在这里接模型**。
 
-即可完成接入。
+### 3. `platform`
+平台能力相关模块，负责：
+- 系统能力封装
+- 底层服务能力
+- 后续如需扩展设备控制，可在这里处理
 
----
+### 4. `third_party/live2d`
+第三方 Live2D 相关依赖与框架代码。
 
-# 4. 对话触发流程（时序）
-
-```text
-用户输入 → 点击发送
-        ↓
-Live2dTalk
-        ↓
-backend.reply()
-        ↓
-网络请求
-        ↓
-返回 AI 文本
-        ↓
-UI 添加消息
-        ↓
-触发 Live2D 动作
-```
-
-关键代码：
-
-```kotlin
-scope.launch {
-    val answer = backend.reply(content, userName)
-    agentAnimateTick++
-    messages += ChatMessage(..., role = AGENT, content = answer)
-}
-```
+后续成员一般**不要直接修改第三方部分**，除非是模型显示本身有问题。
 
 ---
 
-# 5. Live2D 动作联动（重要）
+## 给后续成员的话
+当前项目已经有本地测试回复逻辑，可用于验证客户端流程。
 
-AI 回复后会触发：
+如果你要接入真实能力，请按下面方式做：
 
-```kotlin
-agentAnimateTick++
-```
-
-它会：
-
-- 驱动 `Live2DAvatarScreen`
-- 调用：
-
-```kotlin
-view.playReplyMotion()
-```
-
-👉 如果你想做更高级控制：
-
-可以扩展为：
-
-```kotlin
-reply(text: String): AgentResult
-```
-
-```kotlin
-data class AgentResult(
-    val text: String,
-    val motion: String?
-)
-```
-
-然后：
-
-- 开心 → 笑
-- 生气 → angry motion
+1. 找到当前聊天回复实现位置
+2. 保留消息发送/展示逻辑
+3. 将本地测试回复替换为真实接口返回
+4. 如需驱动角色反馈，在现有角色联动逻辑基础上扩展
+5. 不要把模型接入逻辑直接写进 Live2D 渲染层或第三方模块
 
 ---
 
-# 6. 可选增强（推荐后期做）
+## 当前状态
+当前项目状态是：
 
-## 6.1 流式输出（打字机效果）
-
-替换：
-
-```kotlin
-suspend fun reply(...): String
-```
-
-为：
-
-```kotlin
-fun replyStream(...): Flow<String>
-```
-
-UI 每次 append 字符。
+- 可以进行基础聊天演示
+- 可以验证本地测试回复流程
+- 可以展示 Live2D 角色
+- 已适合作为后续 API / 智能体接入的客户端基础壳子
 
 ---
 
-## 6.2 记忆 / 上下文
-
-当前：无上下文
-
-建议：
-
-```kotlin
-messages.map {
-    role + content
-}
-```
-
-传给后端。
-
----
-
-## 6.3 情绪驱动动画
-
-AI 返回：
-
-```json
-{
-  "text": "今天也很开心！",
-  "emotion": "happy"
-}
-```
-
-UI 根据 emotion 控制 Live2D motion。
-
----
-
-# 7. 常见坑（非常重要）
-
-### ❌ 不要在 UI 线程直接请求网络
-
-必须用：
-
-```kotlin
-scope.launch
-```
-
----
-
-### ❌ 不要在 reply 里操作 UI
-
-Agent 只负责返回数据。
-
----
-
-### ❌ 不要返回 null
-
-统一返回 String，必要时给 fallback。
-
----
-
-### ⚠️ 超时处理
-
-建议：
-
-```kotlin
-withTimeout(10_000)
-```
-
----
-
-# 8. 最小可运行接入（总结）
-
-只需要做三件事：
-
-1. 写一个 `RemoteAgent`
-2. 实现 `reply()` 调 API
-3. 替换 `LocalEchoAgent`
-
-完成。
-
----
-
-# 9. 联系方式 / 说明
-
-如果接入后出现：
-
-- 气泡不显示 → UI 层问题
-- Live2D 不动 → motion trigger 问题
-- 有文字但卡住 → 协程 / API 问题
-
-请带日志反馈。
-
----
-
-# ✅ 一句话总结
-
-👉 **UI 已完全解耦，只要实现一个 `reply()`，Live2D 就能变成 AI 角色。**
-
+## 备注
+本项目当前仓库暂无完整项目描述，提交记录也比较少，因此本指引以当前代码结构和现阶段分工为准，后续如模块职责有变化，再同步更新 README。:contentReference[oaicite:2]{index=2}
