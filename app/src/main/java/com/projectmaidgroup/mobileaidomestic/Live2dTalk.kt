@@ -1,6 +1,7 @@
 package com.projectmaidgroup.mobileaidomestic
 
 import android.content.Context
+import android.content.res.AssetFileDescriptor
 import android.media.MediaPlayer
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
@@ -19,8 +20,10 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -117,7 +120,7 @@ private const val LIVE2D_LOGO_RESOURCE_NAME = "live2d_logo"
 private const val ABOUT_OPTIONAL_APP_LOGO_RESOURCE_NAME = "about_app_logo"
 
 private const val ABOUT_LIVE2D_COPY = "本应用使用 Live2D Cubism SDK / Live2D 展示技术。请在上架页简介中保留“Live2D”字样，并使用 Live2D 官方 Logo。"
-private const val ABOUT_TEAM_COPY = "制作成员：\n- 项目负责人：请在此处填写\n- Android 开发：请在此处填写\n- UI / 形象设计：NightStar夜星\n- 测试与运营：请在此处填写"
+private const val ABOUT_TEAM_COPY = "制作成员：\n- 项目负责人：请在此处填写\n- Android 开发：请在此处填写\n- UI / 形象设计：NightStar夜星(曾成志)\nTWQ6(牟一畅)\n- 测试与运营：请在此处填写"
 private const val ABOUT_ASSET_COPY = "可替换图片位置：app/src/main/res/drawable/about_app_logo.png\n若未放置该图片，将显示默认文字说明。"
 
 @Immutable
@@ -150,6 +153,50 @@ private class AppPrefs(context: Context) {
     var musicEnabled: Boolean
         get() = sp.getBoolean("music_enabled", true)
         set(value) = sp.edit { putBoolean("music_enabled", value) }
+
+    var selectedMusicAssetPath: String
+        get() = sp.getString("selected_music_asset_path", "") ?: ""
+        set(value) = sp.edit { putString("selected_music_asset_path", value) }
+}
+
+private const val MUSIC_ASSET_DIR = "music"
+private val MUSIC_FILE_EXTENSIONS = setOf("mp3", "ogg", "wav", "m4a")
+
+@Immutable
+private data class MusicTrack(
+    val assetPath: String,
+    val title: String,
+)
+
+private fun Context.loadMusicTracks(): List<MusicTrack> {
+    val fileNames = runCatching { assets.list(MUSIC_ASSET_DIR)?.toList().orEmpty() }
+        .getOrDefault(emptyList())
+
+    return fileNames
+        .filter { name ->
+            val ext = name.substringAfterLast('.', missingDelimiterValue = "").lowercase()
+            ext in MUSIC_FILE_EXTENSIONS
+        }
+        .sorted()
+        .map { fileName ->
+            MusicTrack(
+                assetPath = "$MUSIC_ASSET_DIR/$fileName",
+                title = fileName.substringBeforeLast('.')
+                    .replace('_', ' ')
+                    .replace('-', ' ')
+            )
+        }
+}
+
+private fun Context.createMusicPlayer(track: MusicTrack): MediaPlayer {
+    val afd: AssetFileDescriptor = assets.openFd(track.assetPath)
+    return MediaPlayer().apply {
+        setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+        afd.close()
+        isLooping = false
+        setVolume(0.45f, 0.45f)
+        prepare()
+    }
 }
 
 @Immutable
@@ -180,6 +227,7 @@ private val openingLines = listOf(
     "舞台已经准备好啦。丢给我一个词、一句话，或者一个天马行空的念头，我们就能开始。"
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Live2DTalk() {
     val context = LocalContext.current
@@ -190,6 +238,16 @@ fun Live2DTalk() {
     val colorScheme = MaterialTheme.colorScheme
     val live2dLogoResId = remember { context.optionalDrawableResId(LIVE2D_LOGO_RESOURCE_NAME) }
     val aboutAppLogoResId = remember { context.optionalDrawableResId(ABOUT_OPTIONAL_APP_LOGO_RESOURCE_NAME) }
+    val musicTracks = remember { context.loadMusicTracks() }
+    val initialSelectedMusicIndex = remember(musicTracks) {
+        val savedPath = prefs.selectedMusicAssetPath
+        val savedIndex = musicTracks.indexOfFirst { it.assetPath == savedPath }
+        when {
+            musicTracks.isEmpty() -> -1
+            savedIndex >= 0 -> savedIndex
+            else -> 0
+        }
+    }
 
     val stageThemes = remember(isDark, colorScheme) {
         listOf(
@@ -248,6 +306,14 @@ fun Live2DTalk() {
     var panelAlpha by rememberSaveable { mutableFloatStateOf(0.92f) }
     var userName by rememberSaveable { mutableStateOf(prefs.userName) }
     var musicEnabled by rememberSaveable { mutableStateOf(prefs.musicEnabled) }
+    var selectedMusicIndex by rememberSaveable { mutableIntStateOf(initialSelectedMusicIndex) }
+    var playOrderCursor by rememberSaveable { mutableIntStateOf(0) }
+    var playOrder by remember(musicTracks) {
+        mutableStateOf(
+            if (musicTracks.isEmpty()) emptyList()
+            else musicTracks.indices.shuffled(Random(System.currentTimeMillis()))
+        )
+    }
     var agentAnimateTick by rememberSaveable { mutableIntStateOf(0) }
     var showSplash by rememberSaveable { mutableStateOf(true) }
 
@@ -256,6 +322,28 @@ fun Live2DTalk() {
         showSplash = false
     }
 
+    LaunchedEffect(musicTracks) {
+        if (musicTracks.isEmpty()) {
+            selectedMusicIndex = -1
+            playOrder = emptyList()
+            playOrderCursor = 0
+        } else {
+            if (playOrder.size != musicTracks.size) {
+                playOrder = musicTracks.indices.shuffled(Random(System.currentTimeMillis()))
+            }
+            val hasSavedTrack = prefs.selectedMusicAssetPath.isNotBlank() &&
+                    musicTracks.any { it.assetPath == prefs.selectedMusicAssetPath }
+            val safeIndex = if (hasSavedTrack) {
+                selectedMusicIndex.coerceIn(0, musicTracks.lastIndex)
+            } else {
+                playOrder.firstOrNull() ?: 0
+            }
+            selectedMusicIndex = safeIndex
+            playOrderCursor = playOrder.indexOf(safeIndex).takeIf { it >= 0 } ?: 0
+        }
+    }
+
+    val currentTrackTitle = musicTracks.getOrNull(selectedMusicIndex)?.title ?: "未找到音乐"
     val palette = stageThemes[themeIndex % stageThemes.size]
     val panelColor = palette.inputPanel.copy(alpha = panelAlpha)
     val lastUserMessage = messages.lastOrNull { it.role == ChatRole.USER }
@@ -292,26 +380,32 @@ fun Live2DTalk() {
         label = "avatarFloat"
     )
 
-    DisposableEffect(musicEnabled) {
+    DisposableEffect(musicEnabled, selectedMusicIndex, playOrderCursor, musicTracks) {
         var player: MediaPlayer? = null
-        if (musicEnabled) {
+        if (musicEnabled && selectedMusicIndex in musicTracks.indices) {
             runCatching {
-                player = MediaPlayer.create(context, R.raw.bg_music)?.apply {
-                    isLooping = true
-                    setVolume(0.45f, 0.45f)
+                player = context.createMusicPlayer(musicTracks[selectedMusicIndex]).apply {
+                    setOnCompletionListener {
+                        if (playOrder.isNotEmpty()) {
+                            val nextCursor = (playOrderCursor + 1) % playOrder.size
+                            playOrderCursor = nextCursor
+                            selectedMusicIndex = playOrder[nextCursor]
+                        }
+                    }
                     start()
                 }
             }
         }
         onDispose {
-            player?.stop()
+            runCatching { if (player?.isPlaying == true) player?.stop() }
             player?.release()
         }
     }
 
-    DisposableEffect(userName, musicEnabled) {
+    DisposableEffect(userName, musicEnabled, selectedMusicIndex, musicTracks) {
         prefs.userName = userName
         prefs.musicEnabled = musicEnabled
+        prefs.selectedMusicAssetPath = musicTracks.getOrNull(selectedMusicIndex)?.assetPath.orEmpty()
         onDispose { }
     }
 
@@ -418,6 +512,23 @@ fun Live2DTalk() {
                 }
             )
 
+            Text(
+                text = when {
+                    musicTracks.isEmpty() -> "♪ 请将音乐放到 app/src/main/assets/music/"
+                    musicEnabled -> "♪ 当前播放：$currentTrackTitle"
+                    else -> "♪ 当前音乐已暂停：$currentTrackTitle"
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = topInset + 56.dp, end = 12.dp)
+                    .widthIn(max = 190.dp)
+                    .basicMarquee(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                textAlign = TextAlign.End
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -488,12 +599,23 @@ fun Live2DTalk() {
                 currentThemeIndex = themeIndex,
                 themes = stageThemes,
                 musicEnabled = musicEnabled,
+                musicTracks = musicTracks,
+                selectedMusicIndex = selectedMusicIndex,
                 live2dLogoResId = live2dLogoResId,
                 aboutAppLogoResId = aboutAppLogoResId,
                 onUserNameChange = { userName = it },
                 onAlphaChange = { panelAlpha = it },
                 onThemeSelected = { themeIndex = it },
                 onMusicEnabledChange = { musicEnabled = it },
+                onMusicTrackSelected = { index ->
+                    if (index in musicTracks.indices) {
+                        selectedMusicIndex = index
+                        if (playOrder.isEmpty()) {
+                            playOrder = musicTracks.indices.shuffled(Random(System.currentTimeMillis()))
+                        }
+                        playOrderCursor = playOrder.indexOf(index).takeIf { it >= 0 } ?: 0
+                    }
+                },
                 onDismiss = { showSettings = false }
             )
         }
@@ -935,12 +1057,15 @@ private fun SettingsDialog(
     currentThemeIndex: Int,
     themes: List<StageTheme>,
     musicEnabled: Boolean,
+    musicTracks: List<MusicTrack>,
+    selectedMusicIndex: Int,
     live2dLogoResId: Int?,
     aboutAppLogoResId: Int?,
     onUserNameChange: (String) -> Unit,
     onAlphaChange: (Float) -> Unit,
     onThemeSelected: (Int) -> Unit,
     onMusicEnabledChange: (Boolean) -> Unit,
+    onMusicTrackSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -969,6 +1094,13 @@ private fun SettingsDialog(
                         Text("背景音乐", modifier = Modifier.weight(1f))
                         Switch(checked = musicEnabled, onCheckedChange = onMusicEnabledChange)
                     }
+                }
+                item {
+                    MusicTrackSelector(
+                        musicTracks = musicTracks,
+                        selectedMusicIndex = selectedMusicIndex,
+                        onMusicTrackSelected = onMusicTrackSelected
+                    )
                 }
                 item {
                     Text("舞台主题")
@@ -1015,6 +1147,96 @@ private fun SettingsDialog(
             }
         }
     )
+}
+
+@Composable
+private fun MusicTrackSelector(
+    musicTracks: List<MusicTrack>,
+    selectedMusicIndex: Int,
+    onMusicTrackSelected: (Int) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentTitle = musicTracks.getOrNull(selectedMusicIndex)?.title ?: "未发现音乐文件"
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("当前播放音乐")
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(enabled = musicTracks.isNotEmpty()) { expanded = !expanded },
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                Text(
+                    text = currentTitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = if (musicTracks.isEmpty()) {
+                        "请把音乐文件放到 app/src/main/assets/music/"
+                    } else if (expanded) {
+                        "点选下方列表即可立即切换"
+                    } else {
+                        "点此展开音乐列表"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = expanded && musicTracks.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+            ) {
+                musicTracks.forEachIndexed { index, track ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onMusicTrackSelected(index)
+                                expanded = false
+                            }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = track.title,
+                            modifier = Modifier.weight(1f),
+                            color = if (index == selectedMusicIndex) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            fontWeight = if (index == selectedMusicIndex) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                        if (index == selectedMusicIndex) {
+                            Text(
+                                text = "播放中",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    if (index != musicTracks.lastIndex) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
