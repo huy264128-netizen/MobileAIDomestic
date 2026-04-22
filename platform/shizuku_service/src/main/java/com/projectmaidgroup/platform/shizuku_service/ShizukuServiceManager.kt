@@ -35,4 +35,5 @@ object ShizukuServiceManager {
     fun runCommand(cmd: String): String? {
         return service?.runCommand(cmd)
     }
+
 }

@@ -1,5 +1,5 @@
 package com.projectmaidgroup.platform.shizuku_service
-
+import com.projectmaidgroup.platform.maidlang
 import kotlin.system.exitProcess
 
 class ShizukuServiceImpl : IShizukuService.Stub() {
@@ -16,4 +16,7 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
         }
     }
 
+    override fun execMaidLang(code:String): String{
+        return ""
+    }
 }
