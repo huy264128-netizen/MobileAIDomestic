@@ -220,7 +220,7 @@ fun Live2DTalk() {
     }
 
     val initialGreeting = remember { openingLines[Random.nextInt(openingLines.size)] }
-    val messages = remember {
+    var messages = remember {
         mutableStateListOf(
             ChatMessage(id = 1L, role = ChatRole.AGENT, content = initialGreeting)
         )
