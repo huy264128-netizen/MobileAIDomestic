@@ -36,4 +36,8 @@ object ShizukuServiceManager {
         return service?.runCommand(cmd)
     }
 
+    fun execMaidLang(code: String): String?{
+        return service?.execMaidLang(code)
+    }
+
 }

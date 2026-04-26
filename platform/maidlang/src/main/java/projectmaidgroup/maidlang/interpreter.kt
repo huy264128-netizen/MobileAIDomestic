@@ -17,7 +17,7 @@ sealed class MaidValue {
     /** 原生函数值：由 Kotlin 宿主代码注册的外部函数，无需反射即可调用 */
     data class NativeFuncVal(
         val name: String,
-        val func: (List<MaidValue>) -> MaidValue
+        val func: suspend (List<MaidValue>) -> MaidValue
     ) : MaidValue()
     object NullVal : MaidValue()
 
@@ -79,13 +79,13 @@ class ReturnException(val value: MaidValue) : RuntimeException()
 class Interpreter {
     val globalScope = Scope()
     /** 原生函数注册表：名称 -> (参数列表) -> projectmaidgroup.maidlang.MaidValue */
-    private val nativeFunctions = mutableMapOf<String, (List<MaidValue>) -> MaidValue>()
+    private val nativeFunctions = mutableMapOf<String, suspend (List<MaidValue>) -> MaidValue>()
 
     /**
      * 注册一个原生函数，供 MaidLang 中的 external fun 声明使用。
      * 注册后，MaidLang 代码可通过 external fun 声明后直接调用，无需反射。
      */
-    fun registerNative(name: String, func: (List<MaidValue>) -> MaidValue) {
+    fun registerNative(name: String, func: suspend (List<MaidValue>) -> MaidValue) {
         nativeFunctions[name] = func
     }
 
@@ -100,7 +100,7 @@ class Interpreter {
         globalScope.define("println", MaidValue.IntVal(0))
     }
 
-    fun interpret(node: AstNode): MaidValue {
+    suspend fun interpret(node: AstNode): MaidValue {
         return try {
             eval(node, globalScope)
         } catch (e: ReturnException) {
@@ -111,7 +111,7 @@ class Interpreter {
         }
     }
 
-    private fun eval(node: AstNode, scope: Scope): MaidValue {
+    private suspend fun eval(node: AstNode, scope: Scope): MaidValue {
         return when (node) {
             is AstNode.IntNode -> MaidValue.IntVal(node.value)
             is AstNode.FloatNode -> MaidValue.FloatVal(node.value)
@@ -370,7 +370,7 @@ class Interpreter {
      * 通过反射调用 Kotlin/Java 静态方法。
      * importPath 格式: "fully.qualified.ClassName.methodName"
      */
-    private fun callKotlinFunction(func: MaidValue.KotlinFuncVal, args: ArrayList<AstNode>, scope: Scope): MaidValue {
+    private suspend fun callKotlinFunction(func: MaidValue.KotlinFuncVal, args: ArrayList<AstNode>, scope: Scope): MaidValue {
         // 计算参数值
         val argValues = args.map { eval(it, scope) }
 
