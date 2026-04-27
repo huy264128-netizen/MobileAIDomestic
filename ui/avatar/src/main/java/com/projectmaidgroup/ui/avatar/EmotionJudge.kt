@@ -41,7 +41,7 @@ object EmotionJudge {
         }
     }
 
-    private fun hasAny(text: String, words: List<String>): Boolean {
+    private fun hasAny(text: String, words: List<String>): Boolean{
         return words.any { text.contains(it) }
     }
 }
