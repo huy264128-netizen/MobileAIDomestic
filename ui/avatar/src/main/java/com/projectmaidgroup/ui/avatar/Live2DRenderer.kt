@@ -7,9 +7,19 @@ import android.opengl.GLSurfaceView
 import android.util.Log
 import com.live2d.sdk.cubism.framework.CubismFramework
 import com.projectmaidgroup.ui.avatar.live2d.MaoUserModel
+import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+/**
+ * OpenGL 渲染器。
+ *
+ * 重点：
+ * 1. 这个类的方法有些会从 UI 线程调用。
+ * 2. MaoUserModel 必须在 GL 线程中使用。
+ * 3. 所以外部动作不要直接操作 MaoUserModel，而是先塞进 pendingActions 队列。
+ * 4. onDrawFrame 在 GL 线程中取出队列并执行。
+ */
 class Live2DRenderer(
     private val context: Context
 ) : GLSurfaceView.Renderer {
@@ -18,15 +28,16 @@ class Live2DRenderer(
     private var currentSpec: Live2DModelSpec? = null
     private var mao: MaoUserModel? = null
     private var started = false
-    private var pendingTapMotion = false
-    private var pendingReplyMotion = false
+
+    private val pendingActions = ConcurrentLinkedQueue<AvatarAction>()
+
     private var surfaceWidth = 1
     private var surfaceHeight = 1
 
-    private var clearR = 0.12f
-    private var clearG = 0.12f
-    private var clearB = 0.16f
-    private var clearA = 1.0f
+    private var clearR = 0f
+    private var clearG = 0f
+    private var clearB = 0f
+    private var clearA = 0f
 
     fun setModel(spec: Live2DModelSpec) {
         currentSpec = spec
@@ -41,12 +52,34 @@ class Live2DRenderer(
         clearA = Color.alpha(colorInt) / 255f
     }
 
+    fun queueAction(action: AvatarAction) {
+        pendingActions.offer(action)
+    }
+
+    fun playEmotion(emotion: AvatarEmotion) {
+        queueAction(AvatarActionResolver.fromEmotion(emotion))
+    }
+
     fun playTapMotion() {
-        mao?.playTapMotion() ?: run { pendingTapMotion = true }
+        queueAction(
+            AvatarAction(
+                motionGroup = "TapBody",
+                motionName = null,
+                expressionName = null,
+                priority = 3
+            )
+        )
     }
 
     fun playRandomReplyMotion() {
-        mao?.playRandomReplyMotion() ?: run { pendingReplyMotion = true }
+        queueAction(
+            AvatarAction(
+                motionGroup = "TapBody",
+                motionName = null,
+                expressionName = null,
+                priority = 3
+            )
+        )
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -59,10 +92,11 @@ class Live2DRenderer(
                 CubismFramework.initialize()
                 started = true
             }
-            Log.d("Live2DRenderer", "Cubism init success")
+
+            Log.d(TAG, "Cubism init success")
         } catch (t: Throwable) {
             loadFailed = true
-            Log.e("Live2DRenderer", "Cubism init failed", t)
+            Log.e(TAG, "Cubism init failed", t)
         }
     }
 
@@ -74,7 +108,7 @@ class Live2DRenderer(
 
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClearColor(clearR, clearG, clearB, clearA)
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
         if (loadFailed) return
 
@@ -90,21 +124,25 @@ class Live2DRenderer(
             }
 
             mao?.let { model ->
-                if (pendingTapMotion) {
-                    pendingTapMotion = false
-                    model.playTapMotion()
-                }
-                if (pendingReplyMotion) {
-                    pendingReplyMotion = false
-                    model.playRandomReplyMotion()
-                }
+                consumePendingActions(model)
 
                 model.update(1f / 60f)
                 model.draw(surfaceWidth, surfaceHeight)
             }
         } catch (t: Throwable) {
             loadFailed = true
-            Log.e("Live2DRenderer", "onDrawFrame failed", t)
+            Log.e(TAG, "onDrawFrame failed", t)
         }
+    }
+
+    private fun consumePendingActions(model: MaoUserModel) {
+        while (true) {
+            val action = pendingActions.poll() ?: break
+            model.playAction(action)
+        }
+    }
+
+    companion object {
+        private const val TAG = "Live2DRenderer"
     }
 }
