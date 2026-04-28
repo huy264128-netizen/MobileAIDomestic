@@ -13,3 +13,17 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+local.properties
+
+*.apk
+
+app/build/
+
+build/
+
+.gradle/
+
+.idea/
+
+gradle/gradle-daemon-jvm.properties

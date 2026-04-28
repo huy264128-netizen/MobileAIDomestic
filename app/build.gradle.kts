@@ -1,7 +1,30 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val vivoLocalProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun readVivoLocalProperty(name: String): String {
+    return vivoLocalProperties.getProperty(name)
+        ?: (project.findProperty(name) as? String)
+        ?: ""
+}
+
+fun quotedVivoBuildConfig(name: String): String {
+    val value = readVivoLocalProperty(name)
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+    return "\"$value\""
+}
+
 
 android {
     namespace = "com.projectmaidgroup.mobileaidomestic"
@@ -15,6 +38,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "VIVO_AIGC_API_KEY", quotedVivoBuildConfig("VIVO_AIGC_API_KEY"))
+        buildConfigField("String", "VIVO_AIGC_APP_ID", quotedVivoBuildConfig("VIVO_AIGC_APP_ID"))
+        buildConfigField("String", "VIVO_AIGC_APP_KEY", quotedVivoBuildConfig("VIVO_AIGC_APP_KEY"))
+        buildConfigField("String", "VIVO_AIGC_BASE_URL", quotedVivoBuildConfig("VIVO_AIGC_BASE_URL"))
+        buildConfigField("String", "VIVO_AIGC_MODEL", quotedVivoBuildConfig("VIVO_AIGC_MODEL"))
     }
 
     buildTypes {
@@ -32,6 +60,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -45,6 +74,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     
     // 显式添加 Shizuku 依赖以确保 Provider 类被打包
     implementation(libs.shizuku.api)
