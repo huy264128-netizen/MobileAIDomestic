@@ -22,21 +22,15 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    buildFeatures {
-        aidl = true
     }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    api(libs.shizuku.api)
-    api(libs.shizuku.provider)
     implementation(libs.shizuku.api)
     implementation(project(":platform:shizuku_service"))
 
