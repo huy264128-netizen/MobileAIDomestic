@@ -30,7 +30,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.shizuku.api)
     implementation(project(":platform:shizuku_service"))
