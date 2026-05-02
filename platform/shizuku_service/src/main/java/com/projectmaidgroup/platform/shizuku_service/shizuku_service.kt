@@ -1,5 +1,4 @@
 package com.projectmaidgroup.platform.shizuku_service
-import android.icu.util.TimeUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import projectmaidgroup.maidlang.*
