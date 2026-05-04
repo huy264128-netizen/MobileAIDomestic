@@ -17,7 +17,7 @@ sealed class MaidValue {
     /** 原生函数值：由 Kotlin 宿主代码注册的外部函数，无需反射即可调用 */
     data class NativeFuncVal(
         val name: String,
-        val func: (List<MaidValue>) -> MaidValue
+        val func: suspend (List<MaidValue>) -> MaidValue
     ) : MaidValue()
     object NullVal : MaidValue()
 
@@ -37,18 +37,20 @@ sealed class MaidValue {
         else -> 0f
     }
 
-    fun asBool(): Boolean = asInt() != 0
-
-    override fun toString(): String = when (this) {
+    fun asString(): String = when (this) {
+        is StringVal -> value
         is IntVal -> value.toString()
         is FloatVal -> value.toString()
-        is StringVal -> value
         is CharVal -> value.toString()
         is FunctionVal -> "<function ${node.name}>"
         is KotlinFuncVal -> "<kotlin function $funcName>"
         is NativeFuncVal -> "<native function $name>"
         NullVal -> "null"
     }
+
+    fun asBool(): Boolean = asInt() != 0
+
+    override fun toString(): String = asString()
 }
 
 class Scope(val parent: Scope? = null) {
@@ -79,13 +81,13 @@ class ReturnException(val value: MaidValue) : RuntimeException()
 class Interpreter {
     val globalScope = Scope()
     /** 原生函数注册表：名称 -> (参数列表) -> projectmaidgroup.maidlang.MaidValue */
-    private val nativeFunctions = mutableMapOf<String, (List<MaidValue>) -> MaidValue>()
+    private val nativeFunctions = mutableMapOf<String, suspend (List<MaidValue>) -> MaidValue>()
 
     /**
      * 注册一个原生函数，供 MaidLang 中的 external fun 声明使用。
      * 注册后，MaidLang 代码可通过 external fun 声明后直接调用，无需反射。
      */
-    fun registerNative(name: String, func: (List<MaidValue>) -> MaidValue) {
+    fun registerNative(name: String, func: suspend (List<MaidValue>) -> MaidValue) {
         nativeFunctions[name] = func
     }
 
@@ -100,7 +102,7 @@ class Interpreter {
         globalScope.define("println", MaidValue.IntVal(0))
     }
 
-    fun interpret(node: AstNode): MaidValue {
+    suspend fun interpret(node: AstNode): MaidValue {
         return try {
             eval(node, globalScope)
         } catch (e: ReturnException) {
@@ -111,7 +113,7 @@ class Interpreter {
         }
     }
 
-    private fun eval(node: AstNode, scope: Scope): MaidValue {
+    private suspend fun eval(node: AstNode, scope: Scope): MaidValue {
         return when (node) {
             is AstNode.IntNode -> MaidValue.IntVal(node.value)
             is AstNode.FloatNode -> MaidValue.FloatVal(node.value)
@@ -222,7 +224,10 @@ class Interpreter {
                     callKotlinFunction(funcValue, node.args, scope)
                 } else if (funcValue is MaidValue.NativeFuncVal) {
                     // 调用原生函数（免反射，直接调用 Kotlin lambda）
-                    val args = node.args.map { eval(it, scope) }
+                    val args = mutableListOf<MaidValue>()
+                    for (arg in node.args) {
+                        args.add(eval(arg, scope))
+                    }
                     funcValue.func(args)
                 } else {
                     // Built-in functions or errors
@@ -231,16 +236,7 @@ class Interpreter {
                             val args = node.args.map { eval(it, scope) }
                             // 自定义格式化，避免输出类型信息
                             val formatted = args.joinToString(" ") { value ->
-                                when (value) {
-                                    is MaidValue.IntVal -> value.value.toString()
-                                    is MaidValue.FloatVal -> value.value.toString()
-                                    is MaidValue.StringVal -> value.value
-                                    is MaidValue.CharVal -> value.value.toString()
-                                    is MaidValue.FunctionVal -> "<function ${value.node.name}>"
-                                    is MaidValue.KotlinFuncVal -> "<kotlin function ${value.funcName}>"
-                                    is MaidValue.NativeFuncVal -> "<native function ${value.name}>"
-                                    MaidValue.NullVal -> "null"
-                                }
+                                value.asString()
                             }
                             if (node.funName == "println") {
                                 println(formatted)
@@ -301,7 +297,7 @@ class Interpreter {
         return when (op) {
             OpType.ADD -> {
                 if (left is MaidValue.StringVal || right is MaidValue.StringVal) {
-                    MaidValue.StringVal(left.toString() + right.toString())
+                    MaidValue.StringVal(left.asString() + right.asString())
                 } else if (left is MaidValue.FloatVal || right is MaidValue.FloatVal) {
                     MaidValue.FloatVal(left.asFloat() + right.asFloat())
                 } else {
@@ -337,7 +333,7 @@ class Interpreter {
             left is MaidValue.FloatVal || right is MaidValue.FloatVal -> left.asFloat().compareTo(right.asFloat())
             left is MaidValue.StringVal && right is MaidValue.StringVal -> left.value.compareTo(right.value)
             left is MaidValue.CharVal && right is MaidValue.CharVal -> left.value.compareTo(right.value)
-            else -> left.toString().compareTo(right.toString())
+            else -> left.asString().compareTo(right.asString())
         }
     }
 
@@ -370,9 +366,12 @@ class Interpreter {
      * 通过反射调用 Kotlin/Java 静态方法。
      * importPath 格式: "fully.qualified.ClassName.methodName"
      */
-    private fun callKotlinFunction(func: MaidValue.KotlinFuncVal, args: ArrayList<AstNode>, scope: Scope): MaidValue {
+    private suspend fun callKotlinFunction(func: MaidValue.KotlinFuncVal, args: ArrayList<AstNode>, scope: Scope): MaidValue {
         // 计算参数值
-        val argValues = args.map { eval(it, scope) }
+        val argValues = mutableListOf<MaidValue>()
+        for (arg in args) {
+            argValues.add(eval(arg, scope))
+        }
 
         // 加载类
         val clazz: Class<*>
@@ -460,7 +459,7 @@ class Interpreter {
                 }
             }
             MaidValue.NullVal -> null
-            else -> value.toString()
+            else -> value.asString()
         }
     }
 

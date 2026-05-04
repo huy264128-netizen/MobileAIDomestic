@@ -102,7 +102,7 @@ class parser(val rawToken: MutableList<Token>) {
         return false
     }
 
-    fun consume(token: Token) {
+    private fun consume(token: Token) {
         val current = rawToken.getOrNull(nowElement)
             ?: throw IllegalStateException("Unexpected end of input, expected token ${token.value}")
         if (current != token) {
@@ -134,7 +134,7 @@ class parser(val rawToken: MutableList<Token>) {
     }
 
     /** 解析整个程序：由多个声明或语句组成 */
-    fun program(): AstNode.CodeBlock {
+    suspend fun program(): AstNode.CodeBlock {
         val codes = arrayListOf<AstNode>()
         while (!isAtEnd()) {
             codes.add(declaration())
@@ -143,7 +143,7 @@ class parser(val rawToken: MutableList<Token>) {
     }
 
     /** 声明层级：处理变量定义(var)、函数定义(fun)等，若不是声明则降级为 statement */
-    fun declaration(): AstNode {
+    private suspend fun declaration(): AstNode {
         val current = peek() ?: throw IllegalStateException("Unexpected end of input in declaration")
         return when {
             current.type == LexState.IDENTIFIER && current.value == "import" -> importDeclaration()
@@ -181,13 +181,12 @@ class parser(val rawToken: MutableList<Token>) {
         }
     }
 
-    private fun typedVariableDeclaration(): AstNode {
+    private suspend fun typedVariableDeclaration(): AstNode {
         val type = parseType()
         val name = consumeIdentifier()
         val initExpr = if (match(LexState.OPERATOR, "=")) {
             expression()
         } else {
-            // 可以没有初始化？暂时要求必须有
             throw IllegalStateException("Variable declaration requires initializer currently")
         }
         consumeOperator(";")
@@ -195,7 +194,7 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.Assign(AstNode.Variable(name), initExpr)
     }
 
-    private fun variableDeclaration(): AstNode {
+    private suspend fun variableDeclaration(): AstNode {
         consumeIdentifier("var")
         val name = consumeIdentifier()
 
@@ -212,17 +211,16 @@ class parser(val rawToken: MutableList<Token>) {
             is AstNode.FloatNode -> Type.FloatType
             is AstNode.CharNode -> Type.CharType
             is AstNode.StringNode -> Type.StringType
-            is AstNode.FuncCall -> Type.KotlinType // 函数调用暂视为 Kotlin 类型
-            else -> Type.KotlinType // 未知类型
+            is AstNode.FuncCall -> Type.KotlinType
+            else -> Type.KotlinType
         }
 
         nameTable[name] = inferredType
         return AstNode.Assign(AstNode.Variable(name), initExpr)
     }
 
-    private fun functionDeclaration(): AstNode {
+    private suspend fun functionDeclaration(): AstNode {
         consumeIdentifier("fun")
-        // 解析返回类型（可选）
         val returnType = if (isTypeKeyword(peek())) {
             parseType()
         } else {
@@ -236,7 +234,6 @@ class parser(val rawToken: MutableList<Token>) {
 
         if (!check(LexState.OPERATOR, ")")) {
             do {
-                // 解析参数类型（可选）
                 val argType = if (isTypeKeyword(peek())) {
                     parseType()
                 } else {
@@ -258,9 +255,8 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.FuncDefNode(name, args, body)
     }
 
-    private fun functionDeclarationWithoutFun(): AstNode {
-        // 已经位于类型关键字处，解析返回类型
-        val returnType = parseType()  // 消耗类型关键字
+    private suspend fun functionDeclarationWithoutFun(): AstNode {
+        val returnType = parseType()
         val name = consumeIdentifier()
 
         consumeOperator("(")
@@ -269,7 +265,6 @@ class parser(val rawToken: MutableList<Token>) {
 
         if (!check(LexState.OPERATOR, ")")) {
             do {
-                // 解析参数类型（可选）
                 val argType = if (isTypeKeyword(peek())) {
                     parseType()
                 } else {
@@ -293,7 +288,6 @@ class parser(val rawToken: MutableList<Token>) {
 
     private fun importDeclaration(): AstNode {
         consumeIdentifier("import")
-        // 解析导入路径（字符串字面量）
         val pathToken = peek() ?: throw IllegalStateException("Expected import path string")
         if (pathToken.type != LexState.STRING) {
             throw IllegalStateException("Expected import path string, but found '${pathToken.value}'")
@@ -301,12 +295,10 @@ class parser(val rawToken: MutableList<Token>) {
         val importPath = pathToken.value
         nowElement++
 
-        // 解析可选的 "as alias" 部分
         val alias: String = if (check(LexState.IDENTIFIER, "as")) {
             consumeIdentifier("as")
             consumeIdentifier()
         } else {
-            // 如果没有 as，则使用导入路径的最后一段作为别名
             importPath.split(".").last()
         }
 
@@ -314,12 +306,6 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.ImportNode(importPath, alias)
     }
 
-    /**
-     * 外部函数声明：external fun name(type1, type2, ...) -> returnType;
-     *
-     * 声明一个由 Kotlin 宿主代码注册的外部函数，无需反射即可调用。
-     * 例：external fun abs(int) -> int;
-     */
     private fun externalDeclaration(): AstNode {
         consumeIdentifier("external")
         consumeIdentifier("fun")
@@ -333,7 +319,6 @@ class parser(val rawToken: MutableList<Token>) {
             } while (match(LexState.OPERATOR, ","))
         }
         consumeOperator(")")
-        // 解析可选的返回类型
         val returnType: Type = if (match(LexState.OPERATOR, "-") && match(LexState.OPERATOR, ">")) {
             parseType()
         } else {
@@ -343,8 +328,7 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.ExternalFuncDecl(name, paramTypes, returnType)
     }
 
-    /** 语句层级：处理 if, while, for, return 或 代码块 { } */
-    fun statement(): AstNode = when {
+    private suspend fun statement(): AstNode = when {
         check(LexState.OPERATOR, "{") -> codeBlock()
         check(LexState.IDENTIFIER, "if") -> ifStatement()
         check(LexState.IDENTIFIER, "while") -> whileStatement()
@@ -353,8 +337,7 @@ class parser(val rawToken: MutableList<Token>) {
         else -> expressionStatement()
     }
 
-    /** If 语句 - if (expr) stmt [else stmt] */
-    fun ifStatement(): AstNode {
+    private suspend fun ifStatement(): AstNode {
         consumeIdentifier("if")
         consumeOperator("(")
         val condition = expression()
@@ -367,8 +350,7 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.If(condition, thenBranch, elseBranch)
     }
 
-    /** While 语句 - while (expr) stmt */
-    fun whileStatement(): AstNode {
+    private suspend fun whileStatement(): AstNode {
         consumeIdentifier("while")
         consumeOperator("(")
         val condition = expression()
@@ -377,23 +359,12 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.While(condition, body)
     }
 
-    /**
-     * For 语句 - for (init; cond; inc) stmt
-     *
-     * 支持 C 风格 for 循环：
-     *   for (int i = 0; i < 10; i = i + 1) { ... }
-     *   for (var i = 0; i < 10; i = i + 1) { ... }
-     *   for (i = 0; i < 10; ++i) { ... }
-     *   for (;;) { ... }  // 无限循环
-     */
-    fun forStatement(): AstNode {
+    private suspend fun forStatement(): AstNode {
         consumeIdentifier("for")
         consumeOperator("(")
 
-        // 解析初始化子句：可以是变量声明、表达式或空
         val initializer: AstNode? = when {
             isTypeKeyword(peek()) -> {
-                // 类型化变量声明：int i = 0
                 val type = parseType()
                 val name = consumeIdentifier()
                 val initExpr = if (match(LexState.OPERATOR, "=")) {
@@ -405,7 +376,6 @@ class parser(val rawToken: MutableList<Token>) {
                 AstNode.Assign(AstNode.Variable(name), initExpr ?: AstNode.IntNode(0))
             }
             check(LexState.IDENTIFIER, "var") -> {
-                // var 变量声明：var i = 0
                 consumeIdentifier("var")
                 val name = consumeIdentifier()
                 val initExpr = if (match(LexState.OPERATOR, "=")) {
@@ -424,22 +394,19 @@ class parser(val rawToken: MutableList<Token>) {
                 AstNode.Assign(AstNode.Variable(name), initExpr)
             }
             !check(LexState.OPERATOR, ";") -> {
-                // 表达式
                 expression()
             }
-            else -> null // 空初始化子句
+            else -> null
         }
 
         consumeOperator(";")
 
-        // 解析条件子句（可选）
         val condition: AstNode? = if (!check(LexState.OPERATOR, ";")) {
             expression()
         } else null
 
         consumeOperator(";")
 
-        // 解析增量子句（可选）
         val increment: AstNode? = if (!check(LexState.OPERATOR, ")")) {
             expression()
         } else null
@@ -450,15 +417,14 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.For(initializer, condition, increment, body)
     }
 
-    fun returnStatement(): AstNode {
+    private suspend fun returnStatement(): AstNode {
         consumeIdentifier("return")
         val value = if (check(LexState.OPERATOR, ";")) null else expression()
         consumeOperator(";")
         return AstNode.Return(value)
     }
 
-    /** 代码块：解析 { 语句1; 语句2; ... } */
-    fun codeBlock(): AstNode.CodeBlock {
+    private suspend fun codeBlock(): AstNode.CodeBlock {
         consumeOperator("{")
         val codes = arrayListOf<AstNode>()
         while (!isAtEnd() && !check(LexState.OPERATOR, "}")) {
@@ -468,20 +434,15 @@ class parser(val rawToken: MutableList<Token>) {
         return AstNode.CodeBlock(codes)
     }
 
-    /** 表达式语句：解析 expression() 并消耗末尾的分号 */
-    fun expressionStatement(): AstNode {
+    private suspend fun expressionStatement(): AstNode {
         val expr = expression()
         consumeOperator(";")
         return expr
     }
 
-    // --- 2. 表达式优先级 (Expression Precedence - 由低到高) ---
+    private suspend fun expression(): AstNode = assignment()
 
-    /** 优先级 1: 总入口 */
-    fun expression(): AstNode = assignment()
-
-    /** 优先级 2: 赋值 (右结合) -> a = b = 5 */
-    fun assignment(): AstNode {
+    private suspend fun assignment(): AstNode {
         val left = logicalOr()
 
         if (match(LexState.OPERATOR, "=")) {
@@ -495,8 +456,7 @@ class parser(val rawToken: MutableList<Token>) {
         return left
     }
 
-    /** 优先级 3: 逻辑或 (||) */
-    fun logicalOr(): AstNode {
+    private suspend fun logicalOr(): AstNode {
         var node = logicalAnd()
         while (match(LexState.OPERATOR, "||")) {
             val right = logicalAnd()
@@ -505,8 +465,7 @@ class parser(val rawToken: MutableList<Token>) {
         return node
     }
 
-    /** 优先级 4: 逻辑与 (&&) */
-    fun logicalAnd(): AstNode {
+    private suspend fun logicalAnd(): AstNode {
         var node = equality()
         while (match(LexState.OPERATOR, "&&")) {
             val right = equality()
@@ -515,8 +474,7 @@ class parser(val rawToken: MutableList<Token>) {
         return node
     }
 
-    /** 优先级 5: 相等性 (==, !=) */
-    fun equality(): AstNode {
+    private suspend fun equality(): AstNode {
         var node = relational()
         while (true) {
             node = when {
@@ -527,8 +485,7 @@ class parser(val rawToken: MutableList<Token>) {
         }
     }
 
-    /** 优先级 6: 比较 (<, >, <=, >=) */
-    fun relational(): AstNode {
+    private suspend fun relational(): AstNode {
         var node = additive()
         while (true) {
             node = when {
@@ -541,8 +498,7 @@ class parser(val rawToken: MutableList<Token>) {
         }
     }
 
-    /** 优先级 7: 加减 (+, -) */
-    fun additive(): AstNode {
+    private suspend fun additive(): AstNode {
         var node = multiplicative()
         while (true) {
             node = when {
@@ -553,8 +509,7 @@ class parser(val rawToken: MutableList<Token>) {
         }
     }
 
-    /** 优先级 8: 乘除余 (*, /, %) */
-    fun multiplicative(): AstNode {
+    private suspend fun multiplicative(): AstNode {
         var node = unary()
         while (true) {
             node = when {
@@ -566,8 +521,7 @@ class parser(val rawToken: MutableList<Token>) {
         }
     }
 
-    /** 优先级 9: 前缀一元运算 (!, -, ++, --) */
-    fun unary(): AstNode {
+    private suspend fun unary(): AstNode {
         return when {
             match(LexState.OPERATOR, "!") -> AstNode.Unary(OpType.NOT, unary())
             match(LexState.OPERATOR, "-") -> AstNode.Unary(OpType.SUB, unary())
@@ -577,7 +531,7 @@ class parser(val rawToken: MutableList<Token>) {
         }
     }
 
-    fun primary(): AstNode {
+    private suspend fun primary(): AstNode {
         val current = rawToken.getOrNull(nowElement)
             ?: throw IllegalStateException("Unexpected end of input at position $nowElement")
 
@@ -610,7 +564,7 @@ class parser(val rawToken: MutableList<Token>) {
         return ans
     }
 
-    fun postfix(): AstNode {
+    private suspend fun postfix(): AstNode {
         var node = primary()
         while (true) {
             when {
