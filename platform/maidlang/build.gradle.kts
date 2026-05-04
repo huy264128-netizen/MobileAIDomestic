@@ -4,9 +4,7 @@ plugins {
 
 android {
     namespace = "projectmaidgroup.maidlang"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31

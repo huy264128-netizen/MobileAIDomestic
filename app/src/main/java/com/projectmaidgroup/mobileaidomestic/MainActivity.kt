@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import com.projectmaidgroup.platform.shizuku_service.ShizukuServiceManager
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -42,12 +43,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AppEntry() {
     var showSplash by remember { mutableStateOf(true) }
-
     LaunchedEffect(Unit) {
         delay(1200)
         showSplash = false
     }
-
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = showSplash,
