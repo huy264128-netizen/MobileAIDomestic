@@ -1,4 +1,4 @@
-package com.projectmaidgroup.ui.avatar.live2d
+package com.projectmaidgroup.ui.avatar
 
 import android.content.Context
 import java.io.ByteArrayOutputStream

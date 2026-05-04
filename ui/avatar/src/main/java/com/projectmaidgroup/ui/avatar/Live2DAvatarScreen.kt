@@ -43,3 +43,4 @@ fun Live2DAvatarScreen(
         }
     )
 }
+

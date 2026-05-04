@@ -54,12 +54,47 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
             MaidValue.NullVal
         }
 
+        // 新增：应用跳转与系统功能
+        interpreter.registerNative("launch") {
+            val pkg = it[0].asString()
+            // 使用 monkey 启动应用的主 Activity
+            runCommand("monkey -p $pkg -c android.intent.category.LAUNCHER 1")
+            MaidValue.NullVal
+        }
+        interpreter.registerNative("openUrl") {
+            val url = it[0].asString()
+            runCommand("am start -a android.intent.action.VIEW -d $url")
+            MaidValue.NullVal
+        }
+        interpreter.registerNative("inputText") {
+            val text = it[0].asString()
+            runCommand("input text \"$text\"")
+            MaidValue.NullVal
+        }
+        interpreter.registerNative("shell") {
+            MaidValue.StringVal(runCommand(it[0].asString()))
+        }
+        interpreter.registerNative("stopApp") {
+            runCommand("am force-stop ${it[0].asString()}")
+            MaidValue.NullVal
+        }
+        interpreter.registerNative("screenShot") {
+            runCommand("screencap -p ${it[0].asString()}")
+            MaidValue.NullVal
+        }
+
         val inbuiltCode = "external fun tap(float, float) -> void;" +
                 "external fun swipe(float, float, float, float, int);" +
                 "external fun sleep(int);" +
                 "external fun back() -> void;" +
                 "external fun home() -> void;" +
-                "external fun key(int) -> void;"
+                "external fun key(int) -> void;" +
+                "external fun launch(string) -> void;" +
+                "external fun openUrl(string) -> void;" +
+                "external fun inputText(string) -> void;" +
+                "external fun shell(string) -> string;" +
+                "external fun stopApp(string) -> void;" +
+                "external fun screenShot(string) -> void;"
 
         val execCode = inbuiltCode + code
 
