@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Project exclude paths
+/platform/shizuku_for_maid/build/
+/third_party/live2d/Framework/framework/build/
+/third_party/live2d/Framework/framework/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/
