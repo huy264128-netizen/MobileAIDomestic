@@ -45,7 +45,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    
+    implementation("androidx.preference:preference-ktx:1.2.1")
     // 显式添加 Shizuku 依赖以确保 Provider 类被打包
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
@@ -55,7 +55,6 @@ dependencies {
     implementation(files("libs/Live2DCubismCore.aar"))
     implementation(project(":ui:avatar"))
     implementation(libs.androidx.compose.foundation)
-    implementation(libs.play.services.fido)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
