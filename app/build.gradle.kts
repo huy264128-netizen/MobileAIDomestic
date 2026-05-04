@@ -1,6 +1,28 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+val vivoLocalProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun readVivoLocalProperty(name: String): String {
+    return vivoLocalProperties.getProperty(name)
+        ?: (project.findProperty(name) as? String)
+        ?: ""
+}
+
+fun quotedVivoBuildConfig(name: String): String {
+    val value = readVivoLocalProperty(name)
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+    return "\"$value\""
 }
 
 android {
@@ -15,6 +37,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "VIVO_AIGC_API_KEY", quotedVivoBuildConfig("VIVO_AIGC_API_KEY"))
+        buildConfigField("String", "VIVO_AIGC_APP_ID", quotedVivoBuildConfig("VIVO_AIGC_APP_ID"))
+        buildConfigField("String", "VIVO_AIGC_APP_KEY", quotedVivoBuildConfig("VIVO_AIGC_APP_KEY"))
+        buildConfigField("String", "VIVO_AIGC_BASE_URL", quotedVivoBuildConfig("VIVO_AIGC_BASE_URL"))
+        buildConfigField("String", "VIVO_AIGC_MODEL", quotedVivoBuildConfig("VIVO_AIGC_MODEL"))
     }
 
     buildTypes {
@@ -32,6 +60,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -55,6 +84,7 @@ dependencies {
     implementation(files("libs/Live2DCubismCore.aar"))
     implementation(project(":ui:avatar"))
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.play.services.fido)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -63,5 +93,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 

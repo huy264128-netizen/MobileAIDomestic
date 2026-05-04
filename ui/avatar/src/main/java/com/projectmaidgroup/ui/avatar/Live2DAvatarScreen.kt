@@ -4,44 +4,40 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 
-/**
- * Live2D 头像 Compose 入口。
- *
- * 这个版本使用 Live2DGLSurfaceView，
- * 不依赖 Live2DTextureView。
- */
 @Composable
 fun Live2DAvatarScreen(
     model: Live2DModelSpec,
     modifier: Modifier = Modifier,
     backgroundColor: Int,
-    replyMotionTrigger: Int = 0,
-    emotion: AvatarEmotion = AvatarEmotion.NEUTRAL,
-    emotionTrigger: Int = 0
+    replyMotionTrigger: Int,
+    motionCommand: Live2DMotionCommand? = null,
+    motionCommandTrigger: Int = 0
 ) {
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            Live2DGLSurfaceView(context).apply {
+            Live2DTextureView(context).apply {
                 loadModel(model)
                 setClearColor(backgroundColor)
             }
         },
-        update = { view: Live2DGLSurfaceView ->
+        update = { view ->
             view.setClearColor(backgroundColor)
             view.loadModel(model)
 
             if (view.lastReplyMotionTrigger != replyMotionTrigger) {
                 view.lastReplyMotionTrigger = replyMotionTrigger
+
                 if (replyMotionTrigger > 0) {
                     view.playReplyMotion()
                 }
             }
 
-            if (view.lastEmotionTrigger != emotionTrigger) {
-                view.lastEmotionTrigger = emotionTrigger
-                if (emotionTrigger > 0) {
-                    view.playEmotion(emotion)
+            if (view.lastMotionCommandTrigger != motionCommandTrigger) {
+                view.lastMotionCommandTrigger = motionCommandTrigger
+
+                if (motionCommandTrigger > 0 && motionCommand != null) {
+                    view.playMotion(motionCommand)
                 }
             }
         }

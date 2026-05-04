@@ -22,6 +22,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -32,7 +33,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.shizuku.api)
     implementation(project(":platform:shizuku_service"))
-    implementation(project(":platform:maidlang"))
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -62,7 +62,7 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
                 "external fun key(int) -> void;"
 
         val execCode = inbuiltCode + code
-        
+
         return runBlocking {
             try {
                 val tokens = lexer(execCode)

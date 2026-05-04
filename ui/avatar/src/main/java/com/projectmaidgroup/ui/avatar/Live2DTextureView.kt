@@ -27,6 +27,9 @@ class Live2DTextureView @JvmOverloads constructor(
     @Volatile
     private var clearColorInt: Int = android.graphics.Color.TRANSPARENT
 
+    @Volatile
+    var lastMotionCommandTrigger: Int = Int.MIN_VALUE
+
     private var renderThread: RenderThread? = null
 
     init {
@@ -40,6 +43,11 @@ class Live2DTextureView @JvmOverloads constructor(
     fun loadModel(spec: Live2DModelSpec) {
         currentSpec = spec
         live2dRenderer.setModel(spec)
+        renderThread?.requestRender()
+    }
+
+    fun playMotion(command: Live2DMotionCommand) {
+        live2dRenderer.playMotion(command)
         renderThread?.requestRender()
     }
 
