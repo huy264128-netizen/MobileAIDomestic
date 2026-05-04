@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
+    implementation(project(":platform:maidlang"))
     api(libs.shizuku.api)
     api(libs.shizuku.provider)
     testImplementation(libs.junit)
