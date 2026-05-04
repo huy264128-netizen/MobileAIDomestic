@@ -1,8 +1,8 @@
 package com.projectmaidgroup.platform.shizuku_service
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import projectmaidgroup.maidlang.*
 import kotlin.system.exitProcess
+import projectmaidgroup.maidlang.*
 class ShizukuServiceImpl : IShizukuService.Stub() {
     override fun destroy() {
         exitProcess(0)
