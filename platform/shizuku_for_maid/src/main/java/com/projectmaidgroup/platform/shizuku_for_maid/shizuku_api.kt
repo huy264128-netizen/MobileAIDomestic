@@ -30,13 +30,24 @@ object ShizukuManager {
         }
     }
 
-    private fun updateState() {
+    fun updateState() {
         val newState = when {
             !Shizuku.pingBinder() -> ShizukuState.Disconnected
             Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED -> ShizukuState.Denied
             else -> ShizukuState.Granted
         }
         _serviceState.value = newState
+        if (newState == ShizukuState.Granted) {
+            ShizukuServiceManager.bind()
+        }
+    }
+
+    fun requestPermission(requestCode: Int = 100) {
+        if (Shizuku.pingBinder()) {
+            if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                Shizuku.requestPermission(requestCode)
+            }
+        }
     }
 
     suspend fun <T> runWithShizuku(block: () -> T): Result<T> = withContext(Dispatchers.IO) {
@@ -59,6 +70,15 @@ object ShizukuManager {
             ShellResult(0, output, "")
         } catch (e: Exception) {
             ShellResult(1, "", e.message ?: "Unknown error")
+        }
+    }
+
+    // 使用 User Service 运行 MaidLang 脚本
+    suspend fun execMaidLang(code: String): String = withContext(Dispatchers.IO) {
+        try {
+            ShizukuServiceManager.execMaidLang(code) ?: "Error: Service not connected"
+        } catch (e: Exception) {
+            "Error: ${e.message}"
         }
     }
 

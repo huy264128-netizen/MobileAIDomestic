@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import com.projectmaidgroup.platform.shizuku_for_maid.ShizukuManager
 import com.projectmaidgroup.platform.shizuku_service.ShizukuServiceManager
 import kotlinx.coroutines.delay
 
@@ -29,6 +30,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 启动时初始化 Shizuku 状态并请求权限
+        ShizukuManager.updateState()
+        ShizukuManager.requestPermission()
 
         setContent {
             MaterialTheme {
