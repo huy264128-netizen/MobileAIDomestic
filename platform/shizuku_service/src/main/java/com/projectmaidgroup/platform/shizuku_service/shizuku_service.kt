@@ -1,5 +1,6 @@
 package com.projectmaidgroup.platform.shizuku_service
 
+import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.system.exitProcess
@@ -12,10 +13,31 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
 
     override fun runCommand(cmd: String): String {
         return try {
-            val process = Runtime.getRuntime().exec(cmd)
-            process.inputStream.bufferedReader().readText()
+            Log.d("MaidService", "--- Shell Start ---")
+            Log.d("MaidService", "Command: $cmd")
+            
+            // 尝试使用绝对路径
+            val shellPath = if (java.io.File("/system/bin/sh").exists()) "/system/bin/sh" else "sh"
+            
+            val process = ProcessBuilder(shellPath, "-c", cmd)
+                .redirectErrorStream(true)
+                .start()
+            
+            val output = process.inputStream.bufferedReader().readText().trim()
+            val exitCode = process.waitFor()
+            
+            Log.d("MaidService", "Exit Code: $exitCode, Output: '$output'")
+            
+            if (output.isEmpty()) {
+                if (exitCode == 0) "Success (No Output)" else "Error: Exit code $exitCode"
+            } else {
+                output
+            }
         } catch (e: Exception) {
-            e.toString()
+            Log.e("MaidService", "Shell execution failed", e)
+            "Error: ${e.message}"
+        } finally {
+            Log.d("MaidService", "--- Shell End ---")
         }
     }
 
@@ -57,7 +79,6 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
         // 新增：应用跳转与系统功能
         interpreter.registerNative("launch") {
             val pkg = it[0].asString()
-            // 使用 monkey 启动应用的主 Activity
             runCommand("monkey -p $pkg -c android.intent.category.LAUNCHER 1")
             MaidValue.NullVal
         }
@@ -72,7 +93,8 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
             MaidValue.NullVal
         }
         interpreter.registerNative("shell") {
-            MaidValue.StringVal(runCommand(it[0].asString()))
+            val res = runCommand(it[0].asString())
+            MaidValue.StringVal(res)
         }
         interpreter.registerNative("stopApp") {
             runCommand("am force-stop ${it[0].asString()}")
@@ -83,34 +105,37 @@ class ShizukuServiceImpl : IShizukuService.Stub() {
             MaidValue.NullVal
         }
 
-        val inbuiltCode = "external fun tap(float, float) -> void;" +
-                "external fun swipe(float, float, float, float, int);" +
-                "external fun sleep(int);" +
-                "external fun back() -> void;" +
-                "external fun home() -> void;" +
-                "external fun key(int) -> void;" +
-                "external fun launch(string) -> void;" +
-                "external fun openUrl(string) -> void;" +
-                "external fun inputText(string) -> void;" +
-                "external fun shell(string) -> string;" +
-                "external fun stopApp(string) -> void;" +
-                "external fun screenShot(string) -> void;"
+        val inbuiltCode = "external fun tap(float, float) -> void;\n" +
+                "external fun swipe(float, float, float, float, int);\n" +
+                "external fun sleep(int);\n" +
+                "external fun back() -> void;\n" +
+                "external fun home() -> void;\n" +
+                "external fun key(int) -> void;\n" +
+                "external fun launch(string) -> void;\n" +
+                "external fun openUrl(string) -> void;\n" +
+                "external fun inputText(string) -> void;\n" +
+                "external fun shell(string) -> string;\n" +
+                "external fun stopApp(string) -> void;\n" +
+                "external fun screenShot(string) -> void;\n"
 
         val execCode = inbuiltCode + code
 
         return runBlocking {
             try {
+                Log.d("MaidService", "Executing script (v3)...")
                 val tokens = lexer(execCode)
                 val program = parser(tokens).program()
-                var result = ""
+                var lastResult: MaidValue = MaidValue.NullVal
                 for (node in program.codes) {
-                    val currentResult = interpreter.interpret(node)
-                    if (currentResult !is MaidValue.NullVal) {
-                        result += currentResult.asString()
-                    }
+                    lastResult = interpreter.interpret(node)
+                    Log.d("MaidService", "Node: ${node.javaClass.simpleName}, Result: $lastResult")
                 }
-                result
+                
+                val finalOutput = if (lastResult is MaidValue.NullVal) "" else lastResult.asString()
+                Log.d("MaidService", "Final: '$finalOutput'")
+                finalOutput
             } catch (e: Exception) {
+                Log.e("MaidService", "Script error", e)
                 "Error: ${e.message}"
             }
         }

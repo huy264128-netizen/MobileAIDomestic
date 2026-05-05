@@ -1314,6 +1314,7 @@ public class CubismModel {
      *
      * @return If the color information on the SDK is used, return true. If the color information of the model is used, return false.
      */
+    @Deprecated
     public boolean getOverwriteFlagForModelMultiplyColors() {
         CubismDebug.cubismLogWarning("getOverwriteFlagForModelMultiplyColors() is a deprecated function. Please use getOverrideFlagForModelMultiplyColors().");
         return getOverrideFlagForModelMultiplyColors();
@@ -1335,6 +1336,7 @@ public class CubismModel {
      *
      * @return If the color information on the SDK is used, return true. If the color information of the model is used, return false.
      */
+    @Deprecated
     public boolean getOverwriteFlagForModelScreenColors() {
         CubismDebug.cubismLogWarning("getOverwriteFlagForModelScreenColors() is a deprecated function. Please use getOverrideFlagForModelScreenColors().");
         return getOverrideFlagForModelScreenColors();
@@ -1356,6 +1358,7 @@ public class CubismModel {
      *
      * @param value If the color information on the SDK is used, this value is true. If the color information of the model is used, this is false.
      */
+    @Deprecated
     public void setOverwriteFlagForModelMultiplyColors(boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteFlagForModelMultiplyColors(boolean value) is a deprecated function. Please use setOverrideFlagForModelMultiplyColors(boolean value).");
         setOverrideFlagForModelMultiplyColors(value);
@@ -1377,6 +1380,7 @@ public class CubismModel {
      *
      * @param value If the color information on the SDK is used, this value is true. If the color information of the model is used, this is false.
      */
+    @Deprecated
     public void setOverwriteFlagForModelScreenColors(boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteFlagForModelScreenColors(boolean value) is a deprecated function. Please use setOverrideFlagForModelScreenColors(boolean value).");
         setOverrideFlagForModelScreenColors(value);
@@ -1398,6 +1402,7 @@ public class CubismModel {
      *
      * @return If the color information on the SDK is used, return true. If the color information of the model is used, return false.
      */
+    @Deprecated
     public boolean getOverwriteFlagForDrawableMultiplyColors(int drawableIndex) {
         CubismDebug.cubismLogWarning("getOverwriteFlagForDrawableMultiplyColors(int drawableIndex) is a deprecated function. Please use getOverrideFlagForDrawableMultiplyColors(int drawableIndex).");
         return getOverrideFlagForDrawableMultiplyColors(drawableIndex);
@@ -1419,6 +1424,7 @@ public class CubismModel {
      *
      * @return If the color information on the SDK is used, return true. If the color information of the model is used, return false.
      */
+    @Deprecated
     public boolean getOverwriteFlagForDrawableScreenColors(int drawableIndex) {
         CubismDebug.cubismLogWarning("getOverwriteFlagForDrawableScreenColors(int drawableIndex) is a deprecated function. Please use getOverrideFlagForDrawableScreenColors(int drawableIndex).");
         return getOverrideFlagForDrawableScreenColors(drawableIndex);
@@ -1441,6 +1447,7 @@ public class CubismModel {
      * @param partIndex 上書きするPartのインデックス
      * @return SDKからPartの乗算色を上書きするか。上書きするならtrue。
      */
+    @Deprecated
     public boolean getOverwriteColorForPartMultiplyColors(int partIndex) {
         CubismDebug.cubismLogWarning("getOverwriteColorForPartMultiplyColors(int partIndex) is a deprecated function. Please use getOverrideColorForPartMultiplyColors(int partIndex).");
         return getOverrideColorForPartMultiplyColors(partIndex);
@@ -1464,6 +1471,7 @@ public class CubismModel {
      * @param partIndex 上書きするPartのインデックス
      * @return SDKからPartのスクリーン色を上書きするか。上書きするならtrue。
      */
+    @Deprecated
     public boolean getOverwriteColorForPartScreenColors(int partIndex) {
         CubismDebug.cubismLogWarning("getOverwriteColorForPartScreenColors(int partIndex) is a deprecated function. Please use getOverrideColorForPartScreenColors(int partIndex).");
         return getOverrideColorForPartScreenColors(partIndex);
@@ -1486,6 +1494,7 @@ public class CubismModel {
      *
      * @param value If the color information on the SDK is used, this value is true. If the color information of the model is used, this is false.
      */
+    @Deprecated
     public void setOverwriteFlagForDrawableMultiplyColors(int drawableIndex, boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteFlagForDrawableMultiplyColors(int drawableIndex, boolean value) is a deprecated function. Please use setOverrideFlagForDrawableMultiplyColors(int drawableIndex, boolean value).");
         setOverrideFlagForDrawableMultiplyColors(drawableIndex, value);
@@ -1507,6 +1516,7 @@ public class CubismModel {
      *
      * @param value If the color information on the SDK is used, this value is true. If the color information of the model is used, this is false.
      */
+    @Deprecated
     public void setOverwriteFlagForDrawableScreenColors(int drawableIndex, boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteFlagForDrawableScreenColors(int drawableIndex, boolean value) is a deprecated function. Please use setOverrideFlagForDrawableScreenColors(int drawableIndex, boolean value).");
         setOverrideFlagForDrawableScreenColors(drawableIndex, value);
@@ -1529,6 +1539,7 @@ public class CubismModel {
      * @param partIndex 上書きするPartのインデックス
      * @param value SDKからPartの乗算色を上書きするかどうか。trueなら上書きする。
      */
+    @Deprecated
     public void setOverwriteColorForPartMultiplyColors(int partIndex, boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteColorForPartMultiplyColors(int partIndex, boolean value) is a deprecated function. Please use setOverrideColorForPartMultiplyColors(int partIndex, boolean value).");
         setOverrideColorForPartMultiplyColors(partIndex, value);
@@ -1553,6 +1564,7 @@ public class CubismModel {
      * @param partIndex 上書きするPartのインデックス
      * @param value SDKからPartのスクリーン色を上書きするかどうか。trueなら上書きする。
      */
+    @Deprecated
     public void setOverwriteColorForPartScreenColors(int partIndex, boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteColorForPartScreenColors(int partIndex, boolean value) is a deprecated function. Please use setOverrideColorForPartScreenColors(int partIndex, boolean value).");
         setOverrideColorForPartScreenColors(partIndex, value);
@@ -1649,6 +1661,7 @@ public class CubismModel {
      *
      * @return trueならSDK上のカリング設定を使用し、falseならモデルのカリング設定を使用する
      */
+    @Deprecated
     public boolean getOverwriteFlagForModelCullings() {
         CubismDebug.cubismLogWarning("getOverwriteFlagForModelCullings() is a deprecated function. Please use getOverrideFlagForModelCullings().");
         return getOverrideFlagForModelCullings();
@@ -1668,8 +1681,9 @@ public class CubismModel {
      *
      * @deprecated This function is deprecated due to a naming change, use setOverrideFlagForModelCullings(boolean value) instead.
      *
-     * @param value SDK上のカリング設定を使うならtrue, モデルのカリング設定を使うならfalse
+     * @param value SDK上的カリング設定を使うならtrue, モデルのカリング設定を使うならfalse
      */
+    @Deprecated
     public void setOverwriteFlagForModelCullings(boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteFlagForModelCullings(boolean value) is a deprecated function. Please use setOverrideFlagForModelCullings(boolean value).");
         setOverrideFlagForModelCullings(value);
@@ -1692,6 +1706,7 @@ public class CubismModel {
      * @param drawableIndex drawableのインデックス
      * @return trueならSDK上のカリング設定を使用し、falseならモデルのカリング設定を使用する
      */
+    @Deprecated
     public boolean getOverwriteFlagForDrawableCullings(int drawableIndex) {
         CubismDebug.cubismLogWarning("getOverwriteFlagForDrawableCullings(int drawableIndex) is a deprecated function. Please use getOverrideFlagForDrawableCullings(int drawableIndex).");
         return getOverrideFlagForDrawableCullings(drawableIndex);
@@ -1713,8 +1728,9 @@ public class CubismModel {
      * @deprecated This function is deprecated due to a naming change, use setOverrideFlagForDrawableCullings(int drawableIndex, boolean value) instead.
      *
      * @param drawableIndex drawableのインデックス
-     * @param value SDK上のカリング設定を使うならtrue, モデルのカリング設定を使うならfalse
+     * @param value SDK上的カリング設定を使うならtrue, モデルのカリング設定を使うならfalse
      */
+    @Deprecated
     public void setOverwriteFlagForDrawableCullings(int drawableIndex, boolean value) {
         CubismDebug.cubismLogWarning("setOverwriteFlagForDrawableCullings(int drawableIndex, boolean value) is a deprecated function. Please use setOverrideFlagForDrawableCullings(int drawableIndex, boolean value).");
         setOverrideFlagForDrawableCullings(drawableIndex, value);

@@ -10,8 +10,8 @@ import rikka.shizuku.Shizuku.UserServiceArgs
 object ShizukuServiceManager {
     private var service: IShizukuService? = null
     private val userServiceArgs = UserServiceArgs(
-        ComponentName("com.projectmaidgroup.platform.shizuku_service", ShizukuServiceImpl::class.java.name)
-    ).daemon(false).debuggable(true)
+        ComponentName("com.projectmaidgroup.mobileaidomestic", ShizukuServiceImpl::class.java.name)
+    ).daemon(false).debuggable(true).processNameSuffix("maid_shizuku_service")
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {

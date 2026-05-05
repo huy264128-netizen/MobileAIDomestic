@@ -821,19 +821,36 @@ fun Live2DTalk() {
                     if (content.isNotEmpty()) {
                         messages += ChatMessage(id = System.currentTimeMillis(), role = ChatRole.USER, content = content)
                         inputText = ""
-                        scope.launch {
-                            val result = backend.reply(content, userName)
 
-                            agentAnimateTick++
-
-                            messages += ChatMessage(
-                                id = System.currentTimeMillis() + 1,
-                                role = ChatRole.AGENT,
-                                content = result.text
-                            )
-
-                            if (voiceEnabled) {
-                                tts.speak(result.text)
+                        if (content.lowercase() == "/test") {
+                            scope.launch {
+                                // 使用计数器 + 时间戳，彻底杜绝 ID 重复
+                                var idCounter = 0L
+                                val baseId = System.currentTimeMillis()
+                                
+                                messages += ChatMessage(id = baseId + (idCounter++), role = ChatRole.AGENT, content = "开始执行系统集成测试...")
+                                MaidLangTestRunner.runAll().collect { result ->
+                                    val statusIcon = if (result.passed) "✅" else "❌"
+                                    messages += ChatMessage(
+                                        id = baseId + (idCounter++),
+                                        role = ChatRole.AGENT,
+                                        content = "$statusIcon [${result.name}]: ${result.message}"
+                                    )
+                                }
+                                messages += ChatMessage(id = baseId + (idCounter++), role = ChatRole.AGENT, content = "测试执行完毕。")
+                            }
+                        } else {
+                            scope.launch {
+                                val result = backend.reply(content, userName)
+                                agentAnimateTick++
+                                messages += ChatMessage(
+                                    id = System.currentTimeMillis() + 1,
+                                    role = ChatRole.AGENT,
+                                    content = result.text
+                                )
+                                if (voiceEnabled) {
+                                    tts.speak(result.text)
+                                }
                             }
                         }
                     }
