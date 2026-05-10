@@ -1,0 +1,14 @@
+# 复制本文件为项目根目录下的 local.properties（该文件已被 .gitignore 忽略，勿提交）。
+# Android Studio 首次打开工程时通常会自行生成带 sdk.dir 的 local.properties。
+
+# Windows 示例（按本机 SDK 路径修改）：
+# sdk.dir=F\:\\Android\\Sdk
+
+sdk.dir=
+
+# 蓝心 / OpenAI 兼容接口（可选；详见 README.md 与 README_AGENT_TOOLING.md）
+VIVO_AIGC_API_KEY=
+VIVO_AIGC_APP_ID=
+VIVO_AIGC_APP_KEY=
+VIVO_AIGC_BASE_URL=
+VIVO_AIGC_MODEL=

@@ -9,7 +9,6 @@ import com.live2d.sdk.cubism.framework.CubismFramework
 import com.projectmaidgroup.ui.avatar.live2d.MaoUserModel
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
-import com.projectmaidgroup.ui.avatar.Live2DMotionCommand
 
 class Live2DRenderer(
     private val context: Context

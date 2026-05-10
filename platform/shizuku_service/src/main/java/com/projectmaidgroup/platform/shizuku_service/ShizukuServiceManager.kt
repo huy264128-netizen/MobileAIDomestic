@@ -1,7 +1,6 @@
 package com.projectmaidgroup.platform.shizuku_service
 
 import android.content.ComponentName
-import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
 import rikka.shizuku.Shizuku
@@ -9,9 +8,17 @@ import rikka.shizuku.Shizuku.UserServiceArgs
 
 object ShizukuServiceManager {
     private var service: IShizukuService? = null
+    // Shizuku 13+：必须在 UserServiceArgs 上设置非空的 processNameSuffix，否则 bindUserService 会 NPE
+    //（见 rikka.shizuku.Shizuku.UserServiceArgs.forAdd）。
     private val userServiceArgs = UserServiceArgs(
-        ComponentName("com.projectmaidgroup.platform.shizuku_service", ShizukuServiceImpl::class.java.name)
-    ).daemon(false).debuggable(true)
+        ComponentName(
+            BuildConfig.SHIZUKU_HOST_APPLICATION_ID,
+            ShizukuServiceImpl::class.java.name,
+        ),
+    )
+        .daemon(false)
+        .debuggable(true)
+        .processNameSuffix("maid_shizuku_user_service")
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
