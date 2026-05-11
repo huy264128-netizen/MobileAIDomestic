@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -252,7 +253,7 @@ private val openingLines = listOf(
     "舞台已经准备好啦。丢给我一个词、一句话，或者一个天马行空的念头，我们就能开始。"
 )
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun Live2DTalk() {
     val context = LocalContext.current
@@ -1071,7 +1072,7 @@ private fun HistoryOverlay(
                             horizontalAlignment = if (message.role == ChatRole.USER) Alignment.End else Alignment.Start
                         ) {
                             Text(
-                                text = if (message.role == ChatRole.USER) userName else agentName,
+                                text = if (message.role == ChatRole.USER) userName else "M.A.I.D.",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = palette.inputMuted,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -1097,6 +1098,7 @@ private fun HistoryOverlay(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsDialog(
     userName: String,

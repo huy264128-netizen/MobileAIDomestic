@@ -8,8 +8,6 @@ import rikka.shizuku.Shizuku.UserServiceArgs
 
 object ShizukuServiceManager {
     private var service: IShizukuService? = null
-    // Shizuku 13+：必须在 UserServiceArgs 上设置非空的 processNameSuffix，否则 bindUserService 会 NPE
-    //（见 rikka.shizuku.Shizuku.UserServiceArgs.forAdd）。
     private val userServiceArgs = UserServiceArgs(
         ComponentName(
             BuildConfig.SHIZUKU_HOST_APPLICATION_ID,
