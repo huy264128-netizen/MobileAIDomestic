@@ -10,6 +10,12 @@ android {
         minSdk = 31
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Shizuku UserService 的 ComponentName 包名必须是「已安装主应用」的 applicationId，不能写库模块 namespace。
+        buildConfigField(
+            "String",
+            "SHIZUKU_HOST_APPLICATION_ID",
+            "\"com.projectmaidgroup.mobileaidomestic\"",
+        )
     }
 
     buildTypes {
@@ -27,6 +33,7 @@ android {
     }
     buildFeatures {
         aidl = true
+        buildConfig = true
     }
 }
 

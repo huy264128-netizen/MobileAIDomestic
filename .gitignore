@@ -1,20 +1,40 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Gradle
+.gradle/
+**/build/
+build/
+
+# Local SDK path & API keys — never commit
 local.properties
 
-# Project exclude paths
-/platform/shizuku_for_maid/build/
-/third_party/live2d/Framework/framework/build/
-/third_party/live2d/Framework/framework/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.idea_modules/
+
+# Kotlin
+.kotlin/
+
+# CMake / native
+.cxx/
+.externalNativeBuild/
+
+# Profiling / screenshots
+captures/
+
+# Built artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Signing (keep keys local)
+*.jks
+*.keystore
+
+# Logs (optional)
+*.log

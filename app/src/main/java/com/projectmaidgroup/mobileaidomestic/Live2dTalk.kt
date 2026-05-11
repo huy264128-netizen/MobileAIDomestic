@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -114,21 +113,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import android.speech.tts.TextToSpeech
-import android.util.Base64
-import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.Locale
-import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 private const val SPLASH_MIN_LOGO_SHOW_MILLIS = 1000L
 private const val SPLASH_FADE_MILLIS = 450
@@ -149,278 +134,6 @@ private data class ChatMessage(
 
 private enum class ChatRole { USER, AGENT }
 
-private data class AgentReply(
-    val text: String
-)
-
-private interface AgentBackend {
-    suspend fun reply(input: String, userName: String): AgentReply
-}
-
-private class LocalEchoAgent : AgentBackend {
-    override suspend fun reply(input: String, userName: String): AgentReply {
-        delay(450)
-        return AgentReply(
-            text = "收到啦，$userName。关于“$input”，我们可以一起把它拆开慢慢聊。"
-        )
-    }
-}
-private class RemoteVivoBlueLMAgent(
-    private val apiKey: String = "sk-xuanji-2026147165-bFNsb094UHFQaUplWmNubA==",
-    private val appKey: String = "sk-xuanji-2026147165-bFNsb094UHFQaUplWmNubA==",
-    private val baseUrl: String = "https://api-ai.vivo.com.cn/v1/chat/completions",
-    private val model: String = "Doubao-Seed-2.0-mini",
-) : AgentBackend {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
-
-    override suspend fun reply(input: String, userName: String): AgentReply = withContext(Dispatchers.IO) {
-        val auth = VivoAigcAuth.from(apiKey = apiKey, appKey = appKey)
-
-        if (!auth.isValid) {
-            return@withContext AgentReply(
-                text = "蓝心大模型 API 还没有配置完整。请在 local.properties 里填写 VIVO_AIGC_API_KEY 或 VIVO_AIGC_APP_KEY。"
-            )
-        }
-
-        runCatching {
-            val bodyJson = JSONObject()
-                .put("model", model)
-                .put(
-                    "messages",
-                    JSONArray().apply {
-                        put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT))
-                        put(JSONObject().put("role", "user").put("content", "用户昵称：$userName\n用户消息：$input"))
-                    }
-                )
-                .put("temperature", 0.7)
-                .put("max_tokens", 1024)
-                .put("stream", false)
-
-            var lastAuthError: AgentReply? = null
-
-            for (candidateAppKey in auth.appKeyCandidates) {
-                val request = buildOpenAiCompatRequest(
-                    url = baseUrl,
-                    body = bodyJson.toString(),
-                    appKey = candidateAppKey
-                )
-
-                client.newCall(request).execute().use { response ->
-                    val rawBody = response.body?.string().orEmpty()
-
-                    if (!response.isSuccessful) {
-                        Log.w(TAG, "Vivo AIGC API failed: HTTP ${response.code}, body=$rawBody")
-                        val reply = AgentReply(
-                            text = httpErrorMessage(response.code, rawBody)
-                        )
-
-                        if (response.code == 401 || response.code == 403) {
-                            lastAuthError = reply
-                            continue
-                        } else {
-                            return@withContext reply
-                        }
-                    }
-
-                    val parsed = extractAssistantContent(rawBody)
-
-                    if (parsed.errorMessage != null) {
-                        Log.w(TAG, "Vivo AIGC API returned error: ${parsed.errorMessage}, body=$rawBody")
-                        return@withContext AgentReply(text = parsed.errorMessage)
-                    }
-
-                    val assistantContent = parsed.content.orEmpty()
-
-                    if (assistantContent.isBlank()) {
-                        Log.w(TAG, "Vivo AIGC API empty content: $rawBody")
-                        return@withContext AgentReply(text = "蓝心接口返回了空内容，请稍后再试。")
-                    }
-
-                    return@withContext parseAgentReply(assistantContent)
-                }
-            }
-
-            lastAuthError ?: AgentReply(
-                text = "蓝心接口认证失败。请确认 local.properties 中填的是有效 AppKey；如果使用 sk-xuanji-APPID-xxx== 组合 key，请不要缺少最后的 ==。"
-            )
-        }.getOrElse { error ->
-            Log.e(TAG, "Vivo AIGC API error", error)
-            AgentReply(
-                text = "我连接蓝心接口时出错：${error.message ?: "未知错误"}"
-            )
-        }
-    }
-
-    private fun buildOpenAiCompatRequest(
-        url: String,
-        body: String,
-        appKey: String
-    ): Request {
-        val requestId = UUID.randomUUID().toString()
-        val requestUrl = appendQuery(url, "request_id", requestId)
-
-        return Request.Builder()
-            .url(requestUrl)
-            .addHeader("Content-Type", "application/json; charset=utf-8")
-            .addHeader("Accept", "application/json")
-            .addHeader("Authorization", "Bearer $appKey")
-            .post(body.toRequestBody(JSON_MEDIA_TYPE))
-            .build()
-    }
-
-    private fun httpErrorMessage(httpCode: Int, rawBody: String): String {
-        val serverMessage = runCatching {
-            val root = JSONObject(rawBody)
-            root.optJSONObject("error")?.optString("message")
-                ?: root.optString("msg")
-                ?: root.optString("message")
-        }.getOrDefault("").orEmpty()
-
-        return when (httpCode) {
-            401, 403 -> "蓝心接口认证失败：HTTP $httpCode。请检查 AppKey 是否完整、是否过期。${if (serverMessage.isNotBlank()) " 服务端信息：$serverMessage" else ""}"
-            404 -> "蓝心接口地址或模型不存在：HTTP 404。请检查 VIVO_AIGC_BASE_URL 和 VIVO_AIGC_MODEL。${if (serverMessage.isNotBlank()) " 服务端信息：$serverMessage" else ""}"
-            429 -> "蓝心接口请求过快或额度不足：HTTP 429。请稍后再试。${if (serverMessage.isNotBlank()) " 服务端信息：$serverMessage" else ""}"
-            else -> "蓝心接口请求失败：HTTP $httpCode。${if (serverMessage.isNotBlank()) " 服务端信息：$serverMessage" else rawBody.take(200)}"
-        }
-    }
-
-    private fun extractAssistantContent(rawBody: String): ApiParsedResult {
-        return runCatching {
-            val root = JSONObject(rawBody)
-
-            val errorObj = root.optJSONObject("error")
-            if (errorObj != null) {
-                return@runCatching ApiParsedResult(
-                    errorMessage = errorObj.optString("message").ifBlank { errorObj.toString() }
-                )
-            }
-
-            val choices = root.optJSONArray("choices")
-            if (choices != null && choices.length() > 0) {
-                val firstChoice = choices.optJSONObject(0)
-                val messageContent = firstChoice
-                    ?.optJSONObject("message")
-                    ?.optString("content")
-                    .orEmpty()
-
-                if (messageContent.isNotBlank()) {
-                    return@runCatching ApiParsedResult(content = messageContent)
-                }
-
-                val deltaContent = firstChoice
-                    ?.optJSONObject("delta")
-                    ?.optString("content")
-                    .orEmpty()
-
-                if (deltaContent.isNotBlank()) {
-                    return@runCatching ApiParsedResult(content = deltaContent)
-                }
-            }
-
-            ApiParsedResult(
-                content = root.optJSONObject("data")?.optString("content")
-                    ?: root.optString("content")
-            )
-        }.getOrElse { error ->
-            ApiParsedResult(errorMessage = "蓝心接口返回内容解析失败：${error.message ?: "未知错误"}")
-        }
-    }
-
-    private data class ApiParsedResult(
-        val content: String? = null,
-        val errorMessage: String? = null
-    )
-
-    private fun parseAgentReply(rawContent: String): AgentReply {
-        val cleaned = rawContent.stripJsonFence()
-        val json = runCatching { JSONObject(cleaned) }.getOrNull()
-        val text = json?.optString("reply")?.takeIf { it.isNotBlank() } ?: cleaned
-        return AgentReply(text = text)
-    }
-
-    private fun String.stripJsonFence(): String {
-        val value = trim()
-        if (!value.startsWith("```")) return value
-
-        val lines = value.split('\n').toMutableList()
-        if (lines.isNotEmpty()) {
-            lines.removeAt(0)
-        }
-
-        while (lines.isNotEmpty() && lines.last().trim() == "```") {
-            lines.removeAt(lines.lastIndex)
-        }
-
-        return lines.joinToString("\n").trim()
-    }
-
-    private data class VivoAigcAuth(
-        val appKeyCandidates: List<String>
-    ) {
-        val isValid: Boolean get() = appKeyCandidates.isNotEmpty()
-
-        companion object {
-            fun from(apiKey: String, appKey: String): VivoAigcAuth {
-                val candidates = linkedSetOf<String>()
-
-                appKey.trim().takeIf { it.isNotBlank() }?.let { candidates += it }
-
-                val rawApiKey = apiKey.trim()
-                if (rawApiKey.isNotBlank()) {
-                    val parts = rawApiKey.split("-", limit = 4)
-                    if (parts.size == 4 && parts[0] == "sk" && parts[1].contains("xuanji", ignoreCase = true)) {
-                        val encodedOrRawAppKey = parts[3].trim()
-                        decodeBase64Utf8(encodedOrRawAppKey)?.let { candidates += it }
-                        candidates += encodedOrRawAppKey
-                    }
-
-                    candidates += rawApiKey
-                }
-
-                return VivoAigcAuth(appKeyCandidates = candidates.filter { it.isNotBlank() })
-            }
-
-            private fun decodeBase64Utf8(value: String): String? {
-                return runCatching {
-                    String(Base64.decode(value, Base64.DEFAULT), StandardCharsets.UTF_8).trim()
-                }.getOrNull()?.takeIf { it.isNotBlank() && !it.contains('\u0000') }
-            }
-        }
-    }
-
-    companion object {
-        private const val TAG = "RemoteVivoBlueLMAgent"
-
-        // 先不用 BuildConfig，避免你现在的 Gradle/模块配置导致 BuildConfig 无法识别。
-        // 你拿到成员的真实 key 后，直接填到下面两个常量之一：
-        // 1) 如果成员给你的是 sk-xuanji-xxx-yyy== 这种完整组合 key，填 LOCAL_VIVO_AIGC_API_KEY。
-        // 2) 如果成员给你的是普通 AppKey，填 LOCAL_VIVO_AIGC_APP_KEY。
-        private const val LOCAL_VIVO_AIGC_API_KEY = ""
-        private const val LOCAL_VIVO_AIGC_APP_KEY = ""
-        private const val LOCAL_VIVO_AIGC_BASE_URL = "https://api-ai.vivo.com.cn/v1/chat/completions"
-        private const val LOCAL_VIVO_AIGC_MODEL = "Doubao-Seed-2.0-mini"
-
-        private const val DEFAULT_CHAT_URL = "https://api-ai.vivo.com.cn/v1/chat/completions"
-        private const val DEFAULT_MODEL = "Doubao-Seed-2.0-mini"
-        private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-
-        private const val SYSTEM_PROMPT = """
-你是一个可爱的 Live2D 手机助手，需要用中文自然回答用户。
-你必须只返回一段 JSON，不能添加 Markdown、解释或代码块。
-JSON 格式固定为：{"reply":"回复文本","emotion":"HAPPY"}
-reply 是显示在聊天气泡里并朗读出来的文本，尽量简洁、口语化。
-"""
-        private fun appendQuery(url: String, key: String, value: String): String {
-            val separator = if (url.contains("?")) "&" else "?"
-            return url + separator + key + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8.name())
-        }
-    }
-}
 private class AppTts(context: Context) {
     private var ready = false
     private var tts: TextToSpeech? = null
@@ -539,13 +252,13 @@ private val openingLines = listOf(
     "舞台已经准备好啦。丢给我一个词、一句话，或者一个天马行空的念头，我们就能开始。"
 )
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Live2DTalk() {
     val context = LocalContext.current
     val prefs = remember { AppPrefs(context) }
     val scope = rememberCoroutineScope()
-    val backend = remember { RemoteVivoBlueLMAgent() }
+    val backend = remember { LangChain4jShizukuAgent() }
     val tts = remember(context) { AppTts(context) }
     val isDark = isSystemInDarkTheme()
     val colorScheme = MaterialTheme.colorScheme
@@ -818,40 +531,29 @@ fun Live2DTalk() {
                 onOpenSettings = { showSettings = true },
                 onSend = {
                     val content = inputText.trim()
-                    if (content.isNotEmpty()) {
-                        messages += ChatMessage(id = System.currentTimeMillis(), role = ChatRole.USER, content = content)
-                        inputText = ""
+                    if (content.isEmpty()) return@ChatInputPanel
+                    messages += ChatMessage(id = System.currentTimeMillis(), role = ChatRole.USER, content = content)
+                    inputText = ""
+                    scope.launch {
+                        val result = try {
+                            backend.reply(content, userName)
+                        } catch (e: Throwable) {
+                            android.util.Log.e("Live2DTalk", "Agent reply failed", e)
+                            AgentReply(
+                                text = "处理消息时出错：${e.message ?: e.javaClass.simpleName}",
+                            )
+                        }
 
-                        if (content.lowercase() == "/test") {
-                            scope.launch {
-                                // 使用计数器 + 时间戳，彻底杜绝 ID 重复
-                                var idCounter = 0L
-                                val baseId = System.currentTimeMillis()
-                                
-                                messages += ChatMessage(id = baseId + (idCounter++), role = ChatRole.AGENT, content = "开始执行系统集成测试...")
-                                MaidLangTestRunner.runAll().collect { result ->
-                                    val statusIcon = if (result.passed) "✅" else "❌"
-                                    messages += ChatMessage(
-                                        id = baseId + (idCounter++),
-                                        role = ChatRole.AGENT,
-                                        content = "$statusIcon [${result.name}]: ${result.message}"
-                                    )
-                                }
-                                messages += ChatMessage(id = baseId + (idCounter++), role = ChatRole.AGENT, content = "测试执行完毕。")
-                            }
-                        } else {
-                            scope.launch {
-                                val result = backend.reply(content, userName)
-                                agentAnimateTick++
-                                messages += ChatMessage(
-                                    id = System.currentTimeMillis() + 1,
-                                    role = ChatRole.AGENT,
-                                    content = result.text
-                                )
-                                if (voiceEnabled) {
-                                    tts.speak(result.text)
-                                }
-                            }
+                        agentAnimateTick++
+
+                        messages += ChatMessage(
+                            id = System.currentTimeMillis() + 1,
+                            role = ChatRole.AGENT,
+                            content = result.text
+                        )
+
+                        if (voiceEnabled) {
+                            tts.speak(result.text)
                         }
                     }
                 }
@@ -1369,7 +1071,7 @@ private fun HistoryOverlay(
                             horizontalAlignment = if (message.role == ChatRole.USER) Alignment.End else Alignment.Start
                         ) {
                             Text(
-                                text = if (message.role == ChatRole.USER) userName else "M.A.I.D.",
+                                text = if (message.role == ChatRole.USER) userName else agentName,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = palette.inputMuted,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -1395,7 +1097,6 @@ private fun HistoryOverlay(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsDialog(
     userName: String,

@@ -35,3 +35,10 @@
 ├─ platform/shizuku_service       # Shizuku UserService + AIDL 定义与实现
 ├─ third_party/live2d_framework   # Live2D Framework
 └─ app/libs/Live2DCubismCore.aar  # Live2D Core AAR
+```
+
+---
+
+## 3. 智能体工具调用与平台说明（维护文档）
+
+智能体侧 **LangChain4j 工具调用**、**Shizuku 报错/闪退原因与修复**、**Live2D（ui/avatar）相关编译问题** 等，见 **[README_AGENT_TOOLING.md](README_AGENT_TOOLING.md)**。

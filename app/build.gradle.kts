@@ -62,6 +62,13 @@ android {
         compose = true
         buildConfig = true
     }
+    packaging {
+        resources {
+            pickFirsts += "META-INF/LICENSE.md"
+            pickFirsts += "META-INF/LICENSE-notice.md"
+            pickFirsts += "META-INF/NOTICE.md"
+        }
+    }
 }
 
 dependencies {
@@ -95,5 +102,9 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    implementation(libs.langchain4j)
+    implementation(libs.langchain4j.open.ai)
+    implementation("org.slf4j:slf4j-android:1.7.36")
 }
 
