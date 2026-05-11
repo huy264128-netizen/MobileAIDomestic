@@ -123,7 +123,7 @@ private const val ABOUT_OPTIONAL_APP_LOGO_RESOURCE_NAME = "about_app_logo"
 
 private const val ABOUT_LIVE2D_COPY = "本应用使用 Live2D Cubism SDK / Live2D 展示技术。请在上架页简介中保留“Live2D”字样，并使用 Live2D 官方 Logo。"
 private const val ABOUT_TEAM_COPY = "制作成员：\n- 项目负责人：请在此处填写\n- Android 开发：请在此处填写\n- UI / 形象设计：NightStar夜星(曾成志)\nTWQ6(牟一畅)\n- 测试与运营：请在此处填写"
-private const val ABOUT_ASSET_COPY = "可替换图片位置：app/src/main/res/drawable/about_app_logo.png\n若未放置该图片，将显示默认文字说明。"
+private const val ABOUT_ASSET_COPY = "可替换图片位置：app/src/main/res/drawable/about_app_logo.jpg\n若未放置该图片，将显示默认文字说明。"
 
 @Immutable
 private data class ChatMessage(
