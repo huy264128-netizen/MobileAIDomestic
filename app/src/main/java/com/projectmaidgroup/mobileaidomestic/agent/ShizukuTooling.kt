@@ -50,6 +50,35 @@ class ShizukuTooling {
         }
     }
 
+    @Tool(
+        """
+执行一段 MaidLang 自动化脚本。适用于需要复杂逻辑（循环、条件、多步操作）的任务。
+MaidLang 语法简述：
+- 变量：int i=0; string s="a"; var x=1.0; (分号必带)
+- 函数：void funcName(arg){...} 或 fun int name(){return 1;}
+- 控制流：if/else, while, for(int i=0;i<n;i++)
+- 内置函数（已自动声明，直接调用）：
+  tap(float, float), swipe(x1, y1, x2, y2, durationMs), sleep(ms), 
+  back(), home(), key(code), launch(pkg), openUrl(url), 
+  inputText(text), shell(cmd) -> string, stopApp(pkg), screenShot(path)
+""",
+    )
+    fun executeMaidLangScript(code: String): String {
+        return try {
+            when (ShizukuManager.serviceState.value) {
+                ShizukuManager.ShizukuState.Granted -> {
+                    val res = ShizukuServiceManager.execMaidLang(code)
+                        ?: return "错误：服务未连接或执行失败。"
+                    truncateForBinder(res)
+                }
+                else -> "错误：Shizuku 权限未就绪，当前状态：${ShizukuManager.serviceState.value}"
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "executeMaidLangScript failed", e)
+            "脚本执行异常：${e.message}"
+        }
+    }
+
     companion object {
         private const val TAG = "ShizukuTooling"
         /** Binder 单次传输不宜过大；截断避免 TransactionTooLarge / OOM 导致进程被杀。 */

@@ -9,7 +9,7 @@ package com.projectmaidgroup.ui.avatar
 //    THINKING,
 //    SLEEPY
 //}
-//
+
 //data class Live2DMotionCommand(
 //    val emotion: AvatarEmotion = AvatarEmotion.NEUTRAL,
 //    val group: String? = null,
